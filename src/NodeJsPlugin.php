@@ -15,7 +15,6 @@ use Composer\Installer\InstallerEvents;
 /**
  * This class is the entry point for the NodeJs plugin.
  *
- *
  * @author David Négrier
  */
 class NodeJsPlugin implements PluginInterface, EventSubscriberInterface
