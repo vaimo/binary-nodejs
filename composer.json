@@ -1,7 +1,7 @@
 {
     "name": "vaimo/nodejs-installer",
     "type": "composer-plugin",
-    "description": "An installer package that let's you install NodeJS and NPM as a Composer dependency.",
+    "description": "An installer package that let's you install NodeJS and NPM as a Composer dependency. Vaimo: changes introduced to be able to use the package with foxy/foxy",
     "keywords": ["installer", "nodejs", "npm"],
     "homepage": "http://mouf-php.com/packages/mouf/nodejs-installer",
     "license": "MIT",
