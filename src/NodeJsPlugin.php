@@ -10,6 +10,7 @@ use Composer\IO\IOInterface;
 use Composer\Plugin\PluginInterface;
 use Composer\Script\ScriptEvents;
 use Composer\Util\Filesystem;
+use Composer\Installer\InstallerEvents;
 
 /**
  * This class is the entry point for the NodeJs plugin.
@@ -36,29 +37,29 @@ class NodeJsPlugin implements PluginInterface, EventSubscriberInterface
     }
 
     /**
-     * Let's register the harmony dependencies update events.
+     * @inheritDoc
      *
      * @return array
      */
     public static function getSubscribedEvents()
     {
         return array(
+            InstallerEvents::PRE_DEPENDENCIES_SOLVING => array(
+                array('onPostUpdateInstall', 199),
+            ),
             ScriptEvents::POST_INSTALL_CMD => array(
-                array('onPostUpdateInstall', 1),
+                array('onPostUpdateInstall', 199),
             ),
             ScriptEvents::POST_UPDATE_CMD => array(
-                array('onPostUpdateInstall', 1),
+                array('onPostUpdateInstall', 199),
             ),
             self::DOWNLOAD_NODEJS_EVENT => array(
-                array('onPostUpdateInstall', 1)
+                array('onPostUpdateInstall', 199)
             )
         );
     }
 
-    /**
-     * Script callback; Acted on after install or update.
-     */
-    public function onPostUpdateInstall(Event $event)
+    public function onPostUpdateInstall($event)
     {
         $settings = array(
             'targetDir' => 'vendor/nodejs/nodejs',

@@ -1,5 +1,5 @@
 {
-    "name": "mouf/nodejs-installer",
+    "name": "vaimo/nodejs-installer",
     "type": "composer-plugin",
     "description": "An installer package that let's you install NodeJS and NPM as a Composer dependency.",
     "keywords": ["installer", "nodejs", "npm"],
@@ -12,8 +12,11 @@
             "homepage": "http://mouf-php.com"
         }
     ],
+    "replace": {
+        "mouf/nodejs-installer": "*" 
+    },
     "require": {
-    	"php": ">=5.3.0",
+        "php": ">=5.3.0",
         "composer-plugin-api": "^1.0.0",
         "ext-openssl": "*"
     },
@@ -32,10 +35,10 @@
         }
     },
     "extra" : {
-    	"class": ["Mouf\\NodeJsInstaller\\NodeJsPlugin"],
-	    "mouf": {
-		      "logo": "node-js.png"
-	    }
+        "class": ["Mouf\\NodeJsInstaller\\NodeJsPlugin"],
+        "mouf": {
+            "logo": "node-js.png"
+        }
     },
     "scripts": {
         "test": [
