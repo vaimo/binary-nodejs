@@ -12,7 +12,7 @@
             "homepage": "http://mouf-php.com"
         }
     ],
-    "replace": {
+    "conflict": {
         "mouf/nodejs-installer": "*" 
     },
     "require": {
