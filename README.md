@@ -1,13 +1,13 @@
-[![Latest Stable Version](https://poser.pugx.org/mouf/nodejs-installer/v/stable.svg)](https://packagist.org/packages/mouf/nodejs-installer)
-[![Latest Unstable Version](https://poser.pugx.org/mouf/nodejs-installer/v/unstable.svg)](https://packagist.org/packages/mouf/nodejs-installer)
-[![License](https://poser.pugx.org/mouf/nodejs-installer/license.svg)](https://packagist.org/packages/mouf/nodejs-installer)
-[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/thecodingmachine/nodejs-installer/badges/quality-score.png?b=1.0)](https://scrutinizer-ci.com/g/thecodingmachine/nodejs-installer/?branch=1.0)
-
 NodeJS installer for Composer
 =============================
 
 This is an installer that will download NodeJS and NPM and install them in your Composer dependencies.
 Installation is skipped if NodeJS is already available on your machine.
+
+Vaimo Modifications
+-------------------
+
+* Change the order of Composer events to allow the module to be used together with foxy/foxy
 
 Why?
 ----
