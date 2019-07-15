@@ -248,7 +248,8 @@ class NodeJsPlugin implements PluginInterface, EventSubscriberInterface
         // Now, let's remove the links
         $this->verboseLog("Removing NodeJS and NPM links from Composer bin directory");
         foreach (array("node", "npm", "node.bat", "npm.bat") as $file) {
-            $realFile = $binDir.DIRECTORY_SEPARATOR.$file;
+            $realFile = $binDir . DIRECTORY_SEPARATOR.$file;
+            
             if (file_exists($realFile)) {
                 $fileSystem->remove($realFile);
             }
