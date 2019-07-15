@@ -21,10 +21,10 @@ class NodeJsVersionMatcher
 
         $normalizedVersion = $versionParser->normalize($version);
 
-        $versionAsContraint = $versionParser->parseConstraints($normalizedVersion);
+        $versionAsConstraint = $versionParser->parseConstraints($normalizedVersion);
         $linkConstraint = $versionParser->parseConstraints($constraint);
 
-        return $linkConstraint->matches($versionAsContraint);
+        return $linkConstraint->matches($versionAsConstraint);
     }
 
     /**
@@ -38,7 +38,7 @@ class NodeJsVersionMatcher
     public function findBestMatchingVersion(array $versionList, $constraint)
     {
         // Let's sort versions in reverse order.
-        usort($versionList, "version_compare");
+        usort($versionList, 'version_compare');
         $versionList = array_reverse($versionList);
 
         // Now, let's find the best match.
@@ -48,6 +48,6 @@ class NodeJsVersionMatcher
             }
         }
 
-        return;
+        return null;
     }
 }

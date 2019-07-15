@@ -78,7 +78,7 @@ class NodeJsPlugin implements PluginInterface, EventSubscriberInterface
 
         $binDir = $event->getComposer()->getConfig()->get('bin-dir');
 
-        if (!class_exists(__NAMESPACE__.'\\NodeJsVersionMatcher')) {
+        if (!class_exists(__NAMESPACE__ . '\\NodeJsVersionMatcher')) {
             //The package is being uninstalled
             $this->onUninstall($binDir, $settings['targetDir']);
 
@@ -90,7 +90,7 @@ class NodeJsPlugin implements PluginInterface, EventSubscriberInterface
         $versionConstraint = $this->getMergedVersionConstraint();
 
         $this->verboseLog("<info>NodeJS installer:</info>");
-        $this->verboseLog(" - Requested version: ".$versionConstraint);
+        $this->verboseLog(" - Requested version: " . $versionConstraint);
 
         $nodeJsInstaller = new NodeJsInstaller($this->cliIo);
 
@@ -104,7 +104,7 @@ class NodeJsPlugin implements PluginInterface, EventSubscriberInterface
             $globalVersion = $nodeJsInstaller->getNodeJsGlobalInstallVersion();
 
             if ($globalVersion !== null) {
-                $this->verboseLog(" - Global NodeJS install found: v".$globalVersion);
+                $this->verboseLog(" - Global NodeJS install found: v" . $globalVersion);
                 $npmPath = $nodeJsInstaller->getGlobalInstallPath('npm');
 
                 if (!$npmPath) {
@@ -115,7 +115,7 @@ class NodeJsPlugin implements PluginInterface, EventSubscriberInterface
                     $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint, $settings['targetDir']);
                     $isLocal = true;
                 } else {
-                    $this->verboseLog(" - Global NodeJS install matches constraint ".$versionConstraint);
+                    $this->verboseLog(" - Global NodeJS install matches constraint " . $versionConstraint);
                 }
             } else {
                 $this->verboseLog(" - No global NodeJS install found");
@@ -159,13 +159,13 @@ class NodeJsPlugin implements PluginInterface, EventSubscriberInterface
 
         $localVersion = $nodeJsInstaller->getNodeJsLocalInstallVersion($binDir);
         if ($localVersion !== null) {
-            $this->verboseLog(" - Local NodeJS install found: v".$localVersion);
+            $this->verboseLog(" - Local NodeJS install found: v" . $localVersion);
 
             if (!$nodeJsVersionMatcher->isVersionMatching($localVersion, $versionConstraint)) {
                 $this->installBestPossibleLocalVersion($nodeJsInstaller, $versionConstraint, $targetDir);
             } else {
                 // Question: should we update to the latest version? Should we have a nodejs.lock file???
-                $this->verboseLog(" - Local NodeJS install matches constraint ".$versionConstraint);
+                $this->verboseLog(" - Local NodeJS install matches constraint " . $versionConstraint);
             }
         } else {
             $this->verboseLog(" - No local NodeJS install found");
@@ -250,8 +250,8 @@ class NodeJsPlugin implements PluginInterface, EventSubscriberInterface
         }
 
         // Now, let's remove the links
-        $this->verboseLog("Removing NodeJS and NPM links from Composer bin directory");
-        foreach (array("node", "npm", "node.bat", "npm.bat") as $file) {
+        $this->verboseLog('Removing NodeJS and NPM links from Composer bin directory');
+        foreach (array('node', 'npm', 'node.bat', 'npm.bat') as $file) {
             $realFile = $binDir . DIRECTORY_SEPARATOR.$file;
             
             if (file_exists($realFile)) {

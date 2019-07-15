@@ -191,7 +191,8 @@ class NodeJsInstaller
      */
     public function getNodeJSUrl($version)
     {
-        $baseUrl = 'https://nodejs.org/dist/v{{VERSION}}';
+        
+        $baseUrl = NodeJsVersionsLister::NODEJS_DIST_URL . '/v{{VERSION}}';
         $downloadPath = '';
         
         if (Environment::isWindows()) {
@@ -241,18 +242,20 @@ class NodeJsInstaller
     {
         $this->cliIo->write('Installing <info>NodeJS v' . $version . '</info>');
         $url = $this->getNodeJSUrl($version);
-        $this->cliIo->write("  Downloading from $url");
+        $this->cliIo->write('  Downloading from ' . $url);
 
         $cwd = getcwd();
         chdir(__DIR__ . '/../../../../');
 
-        $fileName = 'vendor/'.pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_BASENAME);
+        $fileName = 'vendor/' . pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_BASENAME);
 
         $this->remoteFilesystem->copy(parse_url($url, PHP_URL_HOST), $url, $fileName);
 
         if (!file_exists($fileName)) {
-            throw new \UnexpectedValueException($url.' could not be saved to '.$fileName.', make sure the'
-                .' directory is writable and you have internet connectivity');
+            throw new \UnexpectedValueException(
+                $url . ' could not be saved to ' . $fileName . ', make sure the' .
+                ' directory is writable and you have internet connectivity'
+            );
         }
 
         if (!file_exists($targetDirectory)) {
@@ -260,7 +263,7 @@ class NodeJsInstaller
         }
 
         if (!is_writable($targetDirectory)) {
-            throw new NodeJsInstallerException("'$targetDirectory' is not writable");
+            throw new NodeJsInstallerException('\'' . $targetDirectory . '\' is not writable');
         }
 
         if (!Environment::isWindows()) {
@@ -271,11 +274,12 @@ class NodeJsInstaller
             unlink($fileName);
         } else {
             // If we are in Windows, let's move and install NPM.
-            rename($fileName, $targetDirectory.'/'.basename($fileName));
+            rename($fileName, $targetDirectory . '/' . basename($fileName));
 
             // We have to download the latest available version in a bin for Windows, then upgrade it:
-            $url = "https://nodejs.org/dist/npm/npm-1.4.12.zip";
-            $npmFileName = "vendor/npm-1.4.12.zip";
+            $url = 'https://nodejs.org/dist/npm/npm-1.4.12.zip';
+            $npmFileName = 'vendor/npm-1.4.12.zip';
+            
             $this->remoteFilesystem->copy(parse_url($url, PHP_URL_HOST), $url, $npmFileName);
 
             $this->unzip($npmFileName, $targetDirectory);
@@ -285,17 +289,19 @@ class NodeJsInstaller
             // Let's update NPM
             // 1- Update PATH to run npm.
             $path = getenv('PATH');
-            $newPath = realpath($targetDirectory).";".$path;
-            putenv('PATH='.$newPath);
+            $newPath = realpath($targetDirectory) . ';' . $path;
+            
+            putenv('PATH=' . $newPath);
 
             // 2- Run npm
             $cwd2 = getcwd();
             chdir($targetDirectory);
 
             $returnCode = 0;
-            passthru("npm update npm", $returnCode);
+            passthru('npm update npm', $returnCode);
+            
             if ($returnCode !== 0) {
-                throw new NodeJsInstallerException("An error occurred while updating NPM to latest version.");
+                throw new NodeJsInstallerException('An error occurred while updating NPM to latest version.');
             }
 
             // Finally, let's copy the base npm file for Cygwin
@@ -323,22 +329,24 @@ class NodeJsInstaller
 
         $output = $return_var = null;
 
-        exec("tar -xvf ".$tarGzFile." -C ".escapeshellarg($targetDir)." --strip 1", $output, $return_var);
+        exec('tar -xvf ' . $tarGzFile . ' -C ' . escapeshellarg($targetDir) . ' --strip 1', $output, $return_var);
 
         if ($return_var !== 0) {
-            throw new NodeJsInstallerException("An error occurred while untaring NodeJS ($tarGzFile) to $targetDir");
+            throw new NodeJsInstallerException(
+                'An error occurred while un-taring NodeJS (' . $tarGzFile . ') to ' . $targetDir
+            );
         }
     }
 
     public function createBinScripts($binDir, $targetDir, $isLocal)
     {
         $cwd = getcwd();
-        chdir(__DIR__.'/../../../../');
+        chdir(__DIR__ . '/../../../../');
 
         if (!file_exists($binDir)) {
             $result = mkdir($binDir, 0775, true);
             if ($result === false) {
-                throw new NodeJsInstallerException("Unable to create directory ".$binDir);
+                throw new NodeJsInstallerException('Unable to create directory ' . $binDir);
             }
         }
 
@@ -367,7 +375,10 @@ class NodeJsInstaller
      */
     private function createBinScript($binDir, $fullTargetDir, $scriptName, $target, $isLocal)
     {
-        $content = file_get_contents(__DIR__.'/../bin/'.($isLocal ? 'local/' : 'global/') . $scriptName);
+        $binScriptPath = __DIR__ . '/../bin/' . ($isLocal ? 'local/' : 'global/') . $scriptName;
+        
+        $content = file_get_contents($binScriptPath);
+        
         if ($isLocal) {
             $path = $this->makePathRelative($fullTargetDir, $binDir);
         } else {
@@ -383,10 +394,10 @@ class NodeJsInstaller
                 return;
             }
         }
-
-
-        file_put_contents($binDir.'/'.$scriptName, sprintf($content, $path));
-        chmod($binDir.'/'.$scriptName, 0755);
+        
+        file_put_contents($binDir . '/' . $scriptName, sprintf($content, $path));
+        
+        chmod($binDir . '/' . $scriptName, 0755);
     }
 
     /**
@@ -423,7 +434,7 @@ class NodeJsInstaller
         $endPathRemainder = implode('/', array_slice($endPathArr, $index));
         
         // Construct $endPath from traversing to the common path, then to the remaining $endPath
-        $relativePath = $traverser.($endPathRemainder !== '' ? $endPathRemainder . '/' : '');
+        $relativePath = $traverser . ($endPathRemainder !== '' ? $endPathRemainder . '/' : '');
 
         return ($relativePath === '') ? './' : $relativePath;
     }
@@ -432,6 +443,7 @@ class NodeJsInstaller
     {
         $zip = new \ZipArchive();
         $res = $zip->open($zipFileName);
+        
         if ($res === true) {
             // extract it to the path we determined above
             $zip->extractTo($targetDir);

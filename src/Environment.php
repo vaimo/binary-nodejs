@@ -43,7 +43,7 @@ class Environment
      */
     public static function isArm()
     {
-        return strpos(strtolower(php_uname("m")), "arm") === 0;
+        return strpos(strtolower(php_uname('m')), 'arm') === 0;
     }
 
     /**
@@ -51,7 +51,7 @@ class Environment
      */
     public static function isArmV7l()
     {
-        return php_uname("m") === 'armv7l';
+        return php_uname('m') === 'armv7l';
     }
 
     /**
@@ -59,7 +59,7 @@ class Environment
      */
     public static function isArmV6l()
     {
-        return php_uname("m") === 'armv6l';
+        return php_uname('m') === 'armv6l';
     }
 
     /**
