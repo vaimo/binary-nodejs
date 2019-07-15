@@ -19,20 +19,22 @@ use Composer\Installer\InstallerEvents;
  */
 class NodeJsPlugin implements PluginInterface, EventSubscriberInterface
 {
-
-    protected $composer;
-
     const DOWNLOAD_NODEJS_EVENT = 'download-nodejs';
-
+    
+    /**
+     * @var Composer
+     */
+    protected $composer;
+    
     /**
      * @var IOInterface
      */
-    protected $io;
+    protected $cliIo;
 
-    public function activate(Composer $composer, IOInterface $io)
+    public function activate(Composer $composer, IOInterface $cliIo)
     {
         $this->composer = $composer;
-        $this->io = $io;
+        $this->cliIo = $cliIo;
     }
 
     /**
@@ -90,7 +92,7 @@ class NodeJsPlugin implements PluginInterface, EventSubscriberInterface
         $this->verboseLog("<info>NodeJS installer:</info>");
         $this->verboseLog(" - Requested version: ".$versionConstraint);
 
-        $nodeJsInstaller = new NodeJsInstaller($this->io);
+        $nodeJsInstaller = new NodeJsInstaller($this->cliIo);
 
         $isLocal = false;
 
@@ -137,8 +139,8 @@ class NodeJsPlugin implements PluginInterface, EventSubscriberInterface
      */
     private function verboseLog($message)
     {
-        if ($this->io->isVerbose()) {
-            $this->io->write($message);
+        if ($this->cliIo->isVerbose()) {
+            $this->cliIo->write($message);
         }
     }
 
@@ -181,14 +183,16 @@ class NodeJsPlugin implements PluginInterface, EventSubscriberInterface
      */
     private function installBestPossibleLocalVersion(NodeJsInstaller $nodeJsInstaller, $versionConstraint, $targetDir)
     {
-        $nodeJsVersionsLister = new NodeJsVersionsLister($this->io);
+        $nodeJsVersionsLister = new NodeJsVersionsLister($this->cliIo);
         $allNodeJsVersions = $nodeJsVersionsLister->getList();
 
         $nodeJsVersionMatcher = new NodeJsVersionMatcher();
         $bestPossibleVersion = $nodeJsVersionMatcher->findBestMatchingVersion($allNodeJsVersions, $versionConstraint);
 
         if ($bestPossibleVersion === null) {
-            throw new NodeJsInstallerNodeVersionException("No NodeJS version could be found for constraint '".$versionConstraint."'");
+            throw new NodeJsInstallerNodeVersionException(
+                "No NodeJS version could be found for constraint '" . $versionConstraint . "'"
+            );
         }
 
         $nodeJsInstaller->install($bestPossibleVersion, $targetDir);

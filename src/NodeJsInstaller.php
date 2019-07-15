@@ -6,18 +6,20 @@ use Composer\Util\RemoteFilesystem;
 
 class NodeJsInstaller
 {
-
     /**
      * @var IOInterface
      */
-    private $io;
+    private $cliIo;
 
-    protected $rfs;
+    /**
+     * @var RemoteFilesystem
+     */
+    protected $remoteFilesystem;
 
-    public function __construct(IOInterface $io)
+    public function __construct(IOInterface $cliIo)
     {
-        $this->io = $io;
-        $this->rfs = new RemoteFilesystem($io);
+        $this->cliIo = $cliIo;
+        $this->remoteFilesystem = new RemoteFilesystem($cliIo);
     }
 
     /**
@@ -32,15 +34,15 @@ class NodeJsInstaller
     public function getNodeJsGlobalInstallVersion()
     {
         $returnCode = 0;
-        $output = "";
+        $output = '';
 
         ob_start();
-        $version = exec("nodejs -v 2>&1", $output, $returnCode);
+        $version = exec('nodejs -v 2>&1', $output, $returnCode);
         ob_end_clean();
 
         if ($returnCode !== 0) {
             ob_start();
-            $version = exec("node -v 2>&1", $output, $returnCode);
+            $version = exec('node -v 2>&1', $output, $returnCode);
             ob_end_clean();
 
             if ($returnCode !== 0) {
@@ -48,7 +50,7 @@ class NodeJsInstaller
             }
         }
 
-        return ltrim($version, "v");
+        return ltrim($version, 'v');
     }
 
     /**
@@ -56,9 +58,9 @@ class NodeJsInstaller
      */
     public function getNodeJsGlobalInstallPath()
     {
-        $pathToNodeJS = $this->getGlobalInstallPath("nodejs");
+        $pathToNodeJS = $this->getGlobalInstallPath('nodejs');
         if (!$pathToNodeJS) {
-            $pathToNodeJS = $this->getGlobalInstallPath("node");
+            $pathToNodeJS = $this->getGlobalInstallPath('node');
         }
 
         return $pathToNodeJS;
@@ -71,7 +73,10 @@ class NodeJsInstaller
     public function getGlobalInstallPath($command)
     {
         if (Environment::isWindows()) {
-            $result = trim(shell_exec("where /F ".escapeshellarg($command)), "\n\r");
+            $result = trim(
+                shell_exec('where /F ' . escapeshellarg($command)),
+                "\n\r"
+            );
 
             // "Where" can return several lines.
             $lines = explode("\n", $result);
@@ -81,13 +86,13 @@ class NodeJsInstaller
             // We want to get output from stdout, not from stderr.
             // Therefore, we use proc_open.
             $descriptorspec = array(
-                0 => array("pipe", "r"),  // stdin
-                1 => array("pipe", "w"),  // stdout
-                2 => array("pipe", "w"),  // stderr
+                0 => array('pipe', 'r'),  // stdin
+                1 => array('pipe', 'w'),  // stdout
+                2 => array('pipe', 'w'),  // stderr
             );
             $pipes = array();
 
-            $process = proc_open("which ".escapeshellarg($command), $descriptorspec, $pipes);
+            $process = proc_open('which ' . escapeshellarg($command), $descriptorspec, $pipes);
 
             $stdout = stream_get_contents($pipes[1]);
             fclose($pipes[1]);
@@ -114,14 +119,14 @@ class NodeJsInstaller
     public function getNodeJsLocalInstallVersion($binDir)
     {
         $returnCode = 0;
-        $output = "";
+        $output = '';
 
         $cwd = getcwd();
-        chdir(__DIR__.'/../../../../');
+        chdir(__DIR__ . '/../../../../');
 
         ob_start();
 
-        $version = exec($binDir.DIRECTORY_SEPARATOR.'node -v 2>&1', $output, $returnCode);
+        $version = exec($binDir.DIRECTORY_SEPARATOR . 'node -v 2>&1', $output, $returnCode);
 
         ob_end_clean();
 
@@ -130,80 +135,120 @@ class NodeJsInstaller
         if ($returnCode !== 0) {
             return;
         } else {
-            return ltrim($version, "v");
+            return ltrim($version, 'v');
         }
     }
 
+    private function getArchitectureLabel()
+    {
+        $code = Environment::getArchitecture();
+        
+        $labels = array(
+            32 => 'x86',
+            64 => 'x64'
+        );
+        
+        return isset($labels[$code]) ? $labels[$code] : $code;
+    }
+    
+    private function getOsLabel()
+    {
+        $osLabel = '';
+        
+        $isArm = Environment::isLinux() && Environment::isArm();
+        
+        if (Environment::isMacOS()) {
+            $osLabel = 'darwin';
+        } elseif (Environment::isSunOS()) {
+            $osLabel =  'sunos';
+        } elseif ($isArm && Environment::isArmV6l()) {
+            $osLabel = 'linux-armv6l';
+        } elseif ($isArm && Environment::isArmV7l()) {
+            $osLabel = 'linux-armv7l';
+        } elseif ($isArm && Environment::getArchitecture() === 64) {
+            $osLabel = 'linux-arm64';
+        } elseif (Environment::isLinux()) {
+            $osLabel = 'linux';
+        } elseif (Environment::isWindows()) {
+            $osLabel = 'windows';
+        }
+        
+        if (!$osLabel) {
+            throw new NodeJsInstallerException(
+                'Unsupported architecture: ' . PHP_OS . ' - ' . Environment::getArchitecture() . ' bits'
+            );
+        }
+        
+        return $osLabel;
+    }
+    
     /**
      * Returns URL based on version.
      * URL is dependent on environment
-     * @param  string                   $version
+     * @param  string $version
      * @return string
      * @throws NodeJsInstallerException
      */
     public function getNodeJSUrl($version)
     {
-        if (Environment::isWindows() && Environment::getArchitecture() == 32) {
+        $baseUrl = 'https://nodejs.org/dist/v{{VERSION}}';
+        $downloadPath = '';
+        
+        if (Environment::isWindows()) {
             if (version_compare($version, '4.0.0') >= 0) {
-                return "https://nodejs.org/dist/v".$version."/win-x86/node.exe";
+                $downloadPath = 'win-{{ARCHITECTURE}}/node.exe';
             } else {
-                return "https://nodejs.org/dist/v".$version."/node.exe";
+                $downloadPath = Environment::getArchitecture() === 32
+                    ? 'node.exe'
+                    : '{{ARCHITECTURE}}/node.exe';
             }
-        } elseif (Environment::isWindows() && Environment::getArchitecture() == 64) {
-            if (version_compare($version, '4.0.0') >= 0) {
-                return "https://nodejs.org/dist/v" . $version . "/win-x64/node.exe";
-            } else {
-                return "https://nodejs.org/dist/v" . $version . "/x64/node.exe";
-            }
-        } elseif (Environment::isMacOS() && Environment::getArchitecture() == 32) {
-            return "https://nodejs.org/dist/v".$version."/node-v".$version."-darwin-x86.tar.gz";
-        } elseif (Environment::isMacOS() && Environment::getArchitecture() == 64) {
-            return "https://nodejs.org/dist/v".$version."/node-v".$version."-darwin-x64.tar.gz";
-        } elseif (Environment::isSunOS() && Environment::getArchitecture() == 32) {
-            return "https://nodejs.org/dist/v".$version."/node-v".$version."-sunos-x86.tar.gz";
-        } elseif (Environment::isSunOS() && Environment::getArchitecture() == 64) {
-            return "https://nodejs.org/dist/v".$version."/node-v".$version."-sunos-x64.tar.gz";
+        } elseif (Environment::isMacOS() || Environment::isSunOS() || Environment::isLinux()) {
+            $downloadPath = 'node-v{{VERSION}}-{{OS}}-{{ARCHITECTURE}}.tar.gz';
         } elseif (Environment::isLinux() && Environment::isArm()) {
-            if (version_compare($version, '4.0.0') >= 0) {
-                if (Environment::isArmV6l()) {
-                    return "https://nodejs.org/dist/v".$version."/node-v".$version."-linux-armv6l.tar.gz";
-                } elseif (Environment::isArmV7l()) {
-                    return "https://nodejs.org/dist/v".$version."/node-v".$version."-linux-armv7l.tar.gz";
-                } elseif (Environment::getArchitecture() == 64) {
-                    return "https://nodejs.org/dist/v".$version."/node-v".$version."-linux-arm64.tar.gz";
-                } else {
-                    throw new NodeJsInstallerException('NodeJS-installer cannot install Node on computers with ARM 32bits processors that are not v6l or v7l. Please install NodeJS globally on your machine first, then run composer again.');
-                }
-            } else {
-                throw new NodeJsInstallerException('NodeJS-installer cannot install Node <4.0 on computers with ARM processors. Please install NodeJS globally on your machine first, then run composer again, or consider installing a version of NodeJS >=4.0.');
+            if (version_compare($version, '4.0.0') < 0) {
+                throw new NodeJsInstallerException(
+                    'NodeJS-installer cannot install Node <4.0 on computers with ARM processors. Please ' .
+                    'install NodeJS globally on your machine first, then run composer again, or consider ' .
+                    'installing a version of NodeJS >=4.0.'
+                );
             }
-        } elseif (Environment::isLinux() && Environment::getArchitecture() == 32) {
-            return "https://nodejs.org/dist/v".$version."/node-v".$version."-linux-x86.tar.gz";
-        } elseif (Environment::isLinux() && Environment::getArchitecture() == 64) {
-            return "https://nodejs.org/dist/v".$version."/node-v".$version."-linux-x64.tar.gz";
-        } else {
-            throw new NodeJsInstallerException('Unsupported architecture: '.PHP_OS.' - '.Environment::getArchitecture().' bits');
+
+            if (Environment::isArmV6l() || Environment::isArmV7l() || Environment::getArchitecture()) {
+                $downloadPath = 'node-v{{VERSION}}-{{OS}}.tar.gz';
+            } else {
+                throw new NodeJsInstallerException(
+                    'NodeJS-installer cannot install Node on computers with ARM 32bits processors ' .
+                    'that are not v6l or v7l. Please install NodeJS globally on your machine first, ' .
+                    'then run composer again.'
+                );
+            }
         }
+        
+        return str_replace(
+            array('{{VERSION}}', '{{ARCHITECTURE}}', '{{OS}}'),
+            array($version, $this->getArchitectureLabel(), $this->getOsLabel()),
+            $baseUrl . '/' . $downloadPath
+        );
     }
 
     /**
      * Installs NodeJS
-     * @param  string                   $version
-     * @param  string                   $targetDirectory
+     * @param  string $version
+     * @param  string $targetDirectory
      * @throws NodeJsInstallerException
      */
     public function install($version, $targetDirectory)
     {
-        $this->io->write("Installing <info>NodeJS v".$version."</info>");
+        $this->cliIo->write('Installing <info>NodeJS v' . $version . '</info>');
         $url = $this->getNodeJSUrl($version);
-        $this->io->write("  Downloading from $url");
+        $this->cliIo->write("  Downloading from $url");
 
         $cwd = getcwd();
-        chdir(__DIR__.'/../../../../');
+        chdir(__DIR__ . '/../../../../');
 
         $fileName = 'vendor/'.pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_BASENAME);
 
-        $this->rfs->copy(parse_url($url, PHP_URL_HOST), $url, $fileName);
+        $this->remoteFilesystem->copy(parse_url($url, PHP_URL_HOST), $url, $fileName);
 
         if (!file_exists($fileName)) {
             throw new \UnexpectedValueException($url.' could not be saved to '.$fileName.', make sure the'
@@ -231,7 +276,7 @@ class NodeJsInstaller
             // We have to download the latest available version in a bin for Windows, then upgrade it:
             $url = "https://nodejs.org/dist/npm/npm-1.4.12.zip";
             $npmFileName = "vendor/npm-1.4.12.zip";
-            $this->rfs->copy(parse_url($url, PHP_URL_HOST), $url, $npmFileName);
+            $this->remoteFilesystem->copy(parse_url($url, PHP_URL_HOST), $url, $npmFileName);
 
             $this->unzip($npmFileName, $targetDirectory);
 
@@ -269,6 +314,7 @@ class NodeJsInstaller
      *
      * @param string $tarGzFile
      * @param string $targetDir
+     * @throws NodeJsInstallerException
      */
     private function extractTo($tarGzFile, $targetDir)
     {
@@ -312,18 +358,20 @@ class NodeJsInstaller
 
     /**
      * Copy script into $binDir, replacing PATH with $fullTargetDir
+     *
      * @param string $binDir
      * @param string $fullTargetDir
      * @param string $scriptName
-     * @param bool   $isLocal
+     * @param string $target
+     * @param bool $isLocal
      */
     private function createBinScript($binDir, $fullTargetDir, $scriptName, $target, $isLocal)
     {
-        $content = file_get_contents(__DIR__.'/../bin/'.($isLocal ? "local/" : "global/").$scriptName);
+        $content = file_get_contents(__DIR__.'/../bin/'.($isLocal ? 'local/' : 'global/') . $scriptName);
         if ($isLocal) {
             $path = $this->makePathRelative($fullTargetDir, $binDir);
         } else {
-            if ($scriptName == "node") {
+            if ($scriptName === 'node') {
                 $path = $this->getNodeJsGlobalInstallPath();
             } else {
                 $path = $this->getGlobalInstallPath($target);
@@ -357,23 +405,27 @@ class NodeJsInstaller
             $endPath = strtr($endPath, '\\', '/');
             $startPath = strtr($startPath, '\\', '/');
         }
+        
         // Split the paths into arrays
         $startPathArr = explode('/', trim($startPath, '/'));
         $endPathArr = explode('/', trim($endPath, '/'));
         // Find for which directory the common path stops
         $index = 0;
-        while (isset($startPathArr[$index]) && isset($endPathArr[$index]) && $startPathArr[$index] === $endPathArr[$index]) {
+        
+        while (isset($startPathArr[$index], $endPathArr[$index]) && $startPathArr[$index] === $endPathArr[$index]) {
             $index++;
         }
+        
         // Determine how deep the start path is relative to the common path (ie, "web/bundles" = 2 levels)
         $depth = count($startPathArr) - $index;
         // Repeated "../" for each level need to reach the common path
         $traverser = str_repeat('../', $depth);
         $endPathRemainder = implode('/', array_slice($endPathArr, $index));
+        
         // Construct $endPath from traversing to the common path, then to the remaining $endPath
-        $relativePath = $traverser.(strlen($endPathRemainder) > 0 ? $endPathRemainder.'/' : '');
+        $relativePath = $traverser.($endPathRemainder !== '' ? $endPathRemainder . '/' : '');
 
-        return (strlen($relativePath) === 0) ? './' : $relativePath;
+        return ($relativePath === '') ? './' : $relativePath;
     }
 
     private function unzip($zipFileName, $targetDir)
@@ -398,10 +450,13 @@ class NodeJsInstaller
     public function registerPath($binDir)
     {
         $path = getenv('PATH');
+        
         if (Environment::isWindows()) {
-            putenv('PATH='.realpath($binDir).';'.$path);
+            $valueSeparator = ';';
         } else {
-            putenv('PATH='.realpath($binDir).':'.$path);
+            $valueSeparator = ':';
         }
+
+        putenv('PATH=' . realpath($binDir) . $valueSeparator . $path);
     }
 }
