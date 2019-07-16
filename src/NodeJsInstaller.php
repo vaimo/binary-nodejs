@@ -69,6 +69,7 @@ class NodeJsInstaller
     /**
      * Returns the full install path to a command
      * @param string $command
+     * @return string
      */
     public function getGlobalInstallPath($command)
     {
@@ -133,10 +134,10 @@ class NodeJsInstaller
         chdir($cwd);
 
         if ($returnCode !== 0) {
-            return;
-        } else {
-            return ltrim($version, 'v');
+            return null;
         }
+
+        return ltrim($version, 'v');
     }
 
     private function getArchitectureLabel()
@@ -429,6 +430,7 @@ class NodeJsInstaller
         
         // Determine how deep the start path is relative to the common path (ie, "web/bundles" = 2 levels)
         $depth = count($startPathArr) - $index;
+        
         // Repeated "../" for each level need to reach the common path
         $traverser = str_repeat('../', $depth);
         $endPathRemainder = implode('/', array_slice($endPathArr, $index));
