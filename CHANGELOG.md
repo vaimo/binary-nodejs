@@ -2,7 +2,7 @@
 
 _This file has been auto-generated from the contents of changelog.json_
 
-## 2.0.1
+## 2.0.1 (2019-07-16)
 
 ### Fix
 
