@@ -225,12 +225,14 @@ class Installer
         $downloadPath = '';
         
         if (Environment::isWindows()) {
+            $binaryName = 'node.exe';
+            
             if (version_compare($version, '4.0.0') >= 0) {
-                $downloadPath = FileUtils::composePath('win-{{ARCHITECTURE}}', 'node.exe');
+                $downloadPath = FileUtils::composePath('win-{{ARCHITECTURE}}', $binaryName);
             } else {
                 $downloadPath = Environment::getArchitecture() === 32
-                    ? 'node.exe'
-                    : FileUtils::composePath('{{ARCHITECTURE}}', 'node.exe');
+                    ? $binaryName
+                    : FileUtils::composePath('{{ARCHITECTURE}}', $binaryName);
             }
         } elseif (Environment::isMacOS() || Environment::isSunOS() || Environment::isLinux()) {
             $downloadPath = 'node-v{{VERSION}}-{{OS}}-{{ARCHITECTURE}}.tar.gz';
