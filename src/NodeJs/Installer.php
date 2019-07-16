@@ -5,6 +5,7 @@ use Composer\IO\IOInterface;
 use Composer\Util\RemoteFilesystem;
 use Mouf\NodeJsInstaller\Utils\FileUtils;
 use Mouf\NodeJsInstaller\Composer\Environment;
+use Mouf\NodeJsInstaller\Composer\ConfigKeys;
 
 class Installer
 {
@@ -16,11 +17,27 @@ class Installer
     /**
      * @var RemoteFilesystem
      */
-    protected $remoteFilesystem;
+    private $remoteFilesystem;
 
-    public function __construct(IOInterface $cliIo)
-    {
+    /**
+     * @var string
+     */
+    private $vendorDir;
+
+    /**
+     * @var string
+     */
+    private $binDir;
+
+    public function __construct(
+        IOInterface $cliIo,
+        $vendorDir,
+        $binDir
+    ) {
         $this->cliIo = $cliIo;
+        $this->vendorDir = $vendorDir;
+        $this->binDir = $vendorDir;
+
         $this->remoteFilesystem = new RemoteFilesystem($cliIo);
     }
 
@@ -70,6 +87,7 @@ class Installer
 
     /**
      * Returns the full install path to a command
+     * 
      * @param string $command
      * @return string
      */
@@ -112,6 +130,7 @@ class Installer
 
     /**
      * Checks if NodeJS is installed locally.
+     * 
      * If yes, will return the version number.
      * If no, will return null.
      *
@@ -125,11 +144,16 @@ class Installer
         $output = '';
 
         $cwd = getcwd();
-        chdir(__DIR__ . '/../../../../');
+        
+        $projectRoot = FileUtils::getClosestFilePath($this->vendorDir, ConfigKeys::PACKAGE_CONFIG_FILE);
+        
+        chdir($projectRoot);
 
         ob_start();
 
-        $version = exec($binDir.DIRECTORY_SEPARATOR . 'node -v 2>&1', $output, $returnCode);
+        $cmd = FileUtils::composePath($binDir, 'node -v 2>&1');
+        
+        $version = exec($cmd, $output, $returnCode);
 
         ob_end_clean();
 
@@ -187,7 +211,9 @@ class Installer
     
     /**
      * Returns URL based on version.
+     * 
      * URL is dependent on environment
+     * 
      * @param  string $version
      * @return string
      * @throws \Mouf\NodeJsInstaller\Exception\InstallerException
@@ -237,22 +263,35 @@ class Installer
 
     /**
      * Installs NodeJS
+     * 
      * @param  string $version
      * @param  string $targetDirectory
      * @throws \Mouf\NodeJsInstaller\Exception\InstallerException
      */
     public function install($version, $targetDirectory)
     {
-        $this->cliIo->write('Installing <info>NodeJS v' . $version . '</info>');
         $url = $this->getNodeJSUrl($version);
-        $this->cliIo->write('Using origin: ' . $url);
+
+        $this->cliIo->write(
+            sprintf('Installing <info>NodeJS v%s</info>', $version)
+        );
+        
+        $this->cliIo->write(
+            sprintf('<comment>Using origin: %s</comment>', $url)
+        );
 
         $cwd = getcwd();
-        chdir(__DIR__ . '/../../../../');
+        
+        chdir($cwd);
 
-        $fileName = FileUtils::composePath('vendor', pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_BASENAME));
+        $fileName = FileUtils::composePath(
+            $this->vendorDir, 
+            pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_BASENAME)
+        );
 
         $this->remoteFilesystem->copy(parse_url($url, PHP_URL_HOST), $url, $fileName);
+
+        $this->cliIo->write('');
 
         if (!file_exists($fileName)) {
             $message = sprintf(
@@ -284,16 +323,18 @@ class Installer
             // If we are in Windows, let's move and install NPM.
             rename($fileName, FileUtils::composePath($targetDirectory, basename($fileName)));
 
+            $npmArchiveName = 'npm-1.4.12.zip';
+            
             // We have to download the latest available version in a bin for Windows, then upgrade it:
-            $url = \Mouf\NodeJsInstaller\NodeJs\Version\Lister::NODEJS_DIST_URL . 'npm/npm-1.4.12.zip';
-            $npmFileName = FileUtils::composePath('vendor', 'npm-1.4.12.zip');
+            $url = \Mouf\NodeJsInstaller\NodeJs\Version\Lister::NODEJS_DIST_URL . 'npm/' . $npmArchiveName;
+            $npmFileName = FileUtils::composePath($this->vendorDir, $npmArchiveName);
             
             $this->remoteFilesystem->copy(parse_url($url, PHP_URL_HOST), $url, $npmFileName);
-
+            
             $this->unzip($npmFileName, $targetDirectory);
 
             unlink($npmFileName);
-
+            
             // Let's update NPM
             // 1- Update PATH to run npm.
             $path = getenv('PATH');
@@ -355,7 +396,10 @@ class Installer
     public function createBinScripts($binDir, $targetDir, $isLocal)
     {
         $cwd = getcwd();
-        chdir(__DIR__ . '/../../../../');
+
+        $projectRoot = FileUtils::getClosestFilePath($this->vendorDir, ConfigKeys::PACKAGE_CONFIG_FILE);
+        
+        chdir($projectRoot);
 
         if (!file_exists($binDir)) {
             $result = mkdir($binDir, 0775, true);
@@ -372,7 +416,7 @@ class Installer
         $suffix = '';
         $binFiles = ['node', 'npm'];
         
-        if (!Environment::isWindows()) {
+        if (Environment::isWindows()) {
             $suffix .= '.bat';
         }
 
@@ -394,12 +438,8 @@ class Installer
      */
     private function createBinScript($binDir, $fullTargetDir, $scriptName, $target, $isLocal)
     {
-        $binScriptPath = FileUtils::composePath(
-            __DIR__, 
-            '/../bin/', 
-            ($isLocal ? 'local' : 'global'), 
-            $scriptName
-        );
+        $packageRoot = FileUtils::getClosestFilePath(__DIR__, ConfigKeys::PACKAGE_CONFIG_FILE);
+        $binScriptPath = FileUtils::composePath($packageRoot, 'bin', ($isLocal ? 'local' : 'global'), $scriptName);
         
         $content = file_get_contents($binScriptPath);
         
@@ -456,7 +496,6 @@ class Installer
         // Determine how deep the start path is relative to the common path (ie, "web/bundles" = 2 levels)
         $depth = count($startPathArr) - $index;
         
-        // Repeated "../" for each level need to reach the common path
         $traverser = str_repeat('../', $depth);
         $endPathRemainder = implode('/', array_slice($endPathArr, $index));
         

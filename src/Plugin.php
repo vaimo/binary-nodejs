@@ -48,6 +48,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             $cliIo,
             $this->composer->getRepositoryManager()->getLocalRepository(),
             $composer->getPackage(),
+            $composer->getConfig()->get('vendor-dir'),
             $composer->getConfig()->get('bin-dir')
         );
     }

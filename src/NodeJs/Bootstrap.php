@@ -22,6 +22,11 @@ class Bootstrap
      * @var \Composer\Package\PackageInterface
      */
     private $rootPackage;
+
+    /**
+     * @var string
+     */
+    private $vendorDir;
     
     /**
      * @var string
@@ -32,11 +37,13 @@ class Bootstrap
         \Composer\IO\IOInterface $cliIo,
         \Composer\Repository\WritableRepositoryInterface $packageRepository,
         \Composer\Package\PackageInterface $rootPackage,
+        $vendorDir,
         $binDir
     ) {
         $this->cliIo = $cliIo;
         $this->packageRepository = $packageRepository;
         $this->rootPackage = $rootPackage;
+        $this->vendorDir = $vendorDir;
         $this->binDir = $binDir;
     }
 
@@ -75,7 +82,7 @@ class Bootstrap
             sprintf(' - Requested version: %s', $versionConstraint)
         );
 
-        $nodeJsInstaller = new Installer($this->cliIo);
+        $nodeJsInstaller = new Installer($this->cliIo, $this->vendorDir, $this->binDir);
 
         $isLocal = false;
 
