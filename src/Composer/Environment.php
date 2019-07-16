@@ -1,5 +1,5 @@
 <?php
-namespace Mouf\NodeJsInstaller;
+namespace Mouf\NodeJsInstaller\Composer;
 
 /**
  * A class that returns environment related informations (OS, architecture, etc...)

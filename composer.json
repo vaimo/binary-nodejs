@@ -40,7 +40,7 @@
         }
     },
     "extra" : {
-        "class": ["Mouf\\NodeJsInstaller\\NodeJsPlugin"]
+        "class": ["Mouf\\NodeJsInstaller\\Plugin"]
     },
     "scripts": {
         "test": "phpunit"

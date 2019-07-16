@@ -1,10 +1,12 @@
 <?php
-namespace Mouf\NodeJsInstaller;
+namespace Mouf\NodeJsInstaller\Nodejs;
 
 use Composer\IO\IOInterface;
 use Composer\Util\RemoteFilesystem;
+use Mouf\NodeJsInstaller\Utils\FileUtils;
+use Mouf\NodeJsInstaller\Composer\Environment;
 
-class NodeJsInstaller
+class Installer
 {
     /**
      * @var IOInterface
@@ -86,14 +88,14 @@ class NodeJsInstaller
         } else {
             // We want to get output from stdout, not from stderr.
             // Therefore, we use proc_open.
-            $descriptorspec = array(
+            $descriptorSpec = array(
                 0 => array('pipe', 'r'),  // stdin
                 1 => array('pipe', 'w'),  // stdout
                 2 => array('pipe', 'w'),  // stderr
             );
             $pipes = array();
 
-            $process = proc_open('which ' . escapeshellarg($command), $descriptorspec, $pipes);
+            $process = proc_open('which ' . escapeshellarg($command), $descriptorSpec, $pipes);
 
             $stdout = stream_get_contents($pipes[1]);
             fclose($pipes[1]);
@@ -175,7 +177,7 @@ class NodeJsInstaller
         }
         
         if (!$osLabel) {
-            throw new NodeJsInstallerException(
+            throw new \Mouf\NodeJsInstaller\Exception\InstallerException(
                 'Unsupported architecture: ' . PHP_OS . ' - ' . Environment::getArchitecture() . ' bits'
             );
         }
@@ -188,27 +190,27 @@ class NodeJsInstaller
      * URL is dependent on environment
      * @param  string $version
      * @return string
-     * @throws NodeJsInstallerException
+     * @throws \Mouf\NodeJsInstaller\Exception\InstallerException
      */
     public function getNodeJSUrl($version)
     {
         
-        $baseUrl = NodeJsVersionsLister::NODEJS_DIST_URL . '/v{{VERSION}}';
+        $baseUrl = \Mouf\NodeJsInstaller\NodeJs\Version\Lister::NODEJS_DIST_URL . 'v{{VERSION}}';
         $downloadPath = '';
         
         if (Environment::isWindows()) {
             if (version_compare($version, '4.0.0') >= 0) {
-                $downloadPath = 'win-{{ARCHITECTURE}}/node.exe';
+                $downloadPath = FileUtils::composePath('win-{{ARCHITECTURE}}', 'node.exe');
             } else {
                 $downloadPath = Environment::getArchitecture() === 32
                     ? 'node.exe'
-                    : '{{ARCHITECTURE}}/node.exe';
+                    : FileUtils::composePath('{{ARCHITECTURE}}', 'node.exe');
             }
         } elseif (Environment::isMacOS() || Environment::isSunOS() || Environment::isLinux()) {
             $downloadPath = 'node-v{{VERSION}}-{{OS}}-{{ARCHITECTURE}}.tar.gz';
         } elseif (Environment::isLinux() && Environment::isArm()) {
             if (version_compare($version, '4.0.0') < 0) {
-                throw new NodeJsInstallerException(
+                throw new \Mouf\NodeJsInstaller\Exception\InstallerException(
                     'NodeJS-installer cannot install Node <4.0 on computers with ARM processors. Please ' .
                     'install NodeJS globally on your machine first, then run composer again, or consider ' .
                     'installing a version of NodeJS >=4.0.'
@@ -218,7 +220,7 @@ class NodeJsInstaller
             if (Environment::isArmV6l() || Environment::isArmV7l() || Environment::getArchitecture()) {
                 $downloadPath = 'node-v{{VERSION}}-{{OS}}.tar.gz';
             } else {
-                throw new NodeJsInstallerException(
+                throw new \Mouf\NodeJsInstaller\Exception\InstallerException(
                     'NodeJS-installer cannot install Node on computers with ARM 32bits processors ' .
                     'that are not v6l or v7l. Please install NodeJS globally on your machine first, ' .
                     'then run composer again.'
@@ -237,26 +239,29 @@ class NodeJsInstaller
      * Installs NodeJS
      * @param  string $version
      * @param  string $targetDirectory
-     * @throws NodeJsInstallerException
+     * @throws \Mouf\NodeJsInstaller\Exception\InstallerException
      */
     public function install($version, $targetDirectory)
     {
         $this->cliIo->write('Installing <info>NodeJS v' . $version . '</info>');
         $url = $this->getNodeJSUrl($version);
-        $this->cliIo->write('  Downloading from ' . $url);
+        $this->cliIo->write('Using origin: ' . $url);
 
         $cwd = getcwd();
         chdir(__DIR__ . '/../../../../');
 
-        $fileName = 'vendor/' . pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_BASENAME);
+        $fileName = FileUtils::composePath('vendor', pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_BASENAME));
 
         $this->remoteFilesystem->copy(parse_url($url, PHP_URL_HOST), $url, $fileName);
 
         if (!file_exists($fileName)) {
-            throw new \UnexpectedValueException(
-                $url . ' could not be saved to ' . $fileName . ', make sure the' .
-                ' directory is writable and you have internet connectivity'
+            $message = sprintf(
+                '%s could not be saved to %s, make sure the directory is writable and you have internet connectivity',
+                $url,
+                $fileName
             );
+            
+            throw new \UnexpectedValueException($message);
         }
 
         if (!file_exists($targetDirectory)) {
@@ -264,7 +269,9 @@ class NodeJsInstaller
         }
 
         if (!is_writable($targetDirectory)) {
-            throw new NodeJsInstallerException('\'' . $targetDirectory . '\' is not writable');
+            throw new \Mouf\NodeJsInstaller\Exception\InstallerException(
+                sprintf('\'%s\' is not writable', $targetDirectory)
+            );
         }
 
         if (!Environment::isWindows()) {
@@ -275,11 +282,11 @@ class NodeJsInstaller
             unlink($fileName);
         } else {
             // If we are in Windows, let's move and install NPM.
-            rename($fileName, $targetDirectory . '/' . basename($fileName));
+            rename($fileName, FileUtils::composePath($targetDirectory, basename($fileName)));
 
             // We have to download the latest available version in a bin for Windows, then upgrade it:
-            $url = 'https://nodejs.org/dist/npm/npm-1.4.12.zip';
-            $npmFileName = 'vendor/npm-1.4.12.zip';
+            $url = \Mouf\NodeJsInstaller\NodeJs\Version\Lister::NODEJS_DIST_URL . 'npm/npm-1.4.12.zip';
+            $npmFileName = FileUtils::composePath('vendor', 'npm-1.4.12.zip');
             
             $this->remoteFilesystem->copy(parse_url($url, PHP_URL_HOST), $url, $npmFileName);
 
@@ -302,7 +309,9 @@ class NodeJsInstaller
             passthru('npm update npm', $returnCode);
             
             if ($returnCode !== 0) {
-                throw new NodeJsInstallerException('An error occurred while updating NPM to latest version.');
+                throw new \Mouf\NodeJsInstaller\Exception\InstallerException(
+                    'An error occurred while updating NPM to latest version.'
+                );
             }
 
             // Finally, let's copy the base npm file for Cygwin
@@ -321,7 +330,7 @@ class NodeJsInstaller
      *
      * @param string $tarGzFile
      * @param string $targetDir
-     * @throws NodeJsInstallerException
+     * @throws \Mouf\NodeJsInstaller\Exception\InstallerException
      */
     private function extractTo($tarGzFile, $targetDir)
     {
@@ -330,11 +339,15 @@ class NodeJsInstaller
 
         $output = $return_var = null;
 
-        exec('tar -xvf ' . $tarGzFile . ' -C ' . escapeshellarg($targetDir) . ' --strip 1', $output, $return_var);
+        exec(
+            sprintf('tar -xvf %s -C %s --strip 1', $tarGzFile, escapeshellarg($targetDir)), 
+            $output, 
+            $return_var
+        );
 
         if ($return_var !== 0) {
-            throw new NodeJsInstallerException(
-                'An error occurred while un-taring NodeJS (' . $tarGzFile . ') to ' . $targetDir
+            throw new \Mouf\NodeJsInstaller\Exception\InstallerException(
+                sprintf('An error occurred while un-taring NodeJS (%s) to %s', $tarGzFile, $targetDir)
             );
         }
     }
@@ -347,21 +360,26 @@ class NodeJsInstaller
         if (!file_exists($binDir)) {
             $result = mkdir($binDir, 0775, true);
             if ($result === false) {
-                throw new NodeJsInstallerException('Unable to create directory ' . $binDir);
+                throw new \Mouf\NodeJsInstaller\Exception\InstallerException(
+                    'Unable to create directory ' . $binDir
+                );
             }
         }
 
         $fullTargetDir = realpath($targetDir);
         $binDir = realpath($binDir);
 
+        $suffix = '';
+        $binFiles = ['node', 'npm'];
+        
         if (!Environment::isWindows()) {
-            $this->createBinScript($binDir, $fullTargetDir, 'node', 'node', $isLocal);
-            $this->createBinScript($binDir, $fullTargetDir, 'npm', 'npm', $isLocal);
-        } else {
-            $this->createBinScript($binDir, $fullTargetDir, 'node.bat', 'node', $isLocal);
-            $this->createBinScript($binDir, $fullTargetDir, 'npm.bat', 'npm', $isLocal);
+            $suffix .= '.bat';
         }
 
+        foreach ($binFiles as $binFile) {
+            $this->createBinScript($binDir, $fullTargetDir, $binFile . $suffix, $binFile, $isLocal);
+        }
+        
         chdir($cwd);
     }
 
@@ -376,7 +394,12 @@ class NodeJsInstaller
      */
     private function createBinScript($binDir, $fullTargetDir, $scriptName, $target, $isLocal)
     {
-        $binScriptPath = __DIR__ . '/../bin/' . ($isLocal ? 'local/' : 'global/') . $scriptName;
+        $binScriptPath = FileUtils::composePath(
+            __DIR__, 
+            '/../bin/', 
+            ($isLocal ? 'local' : 'global'), 
+            $scriptName
+        );
         
         $content = file_get_contents($binScriptPath);
         
@@ -396,9 +419,11 @@ class NodeJsInstaller
             }
         }
         
-        file_put_contents($binDir . '/' . $scriptName, sprintf($content, $path));
+        $scriptPath = FileUtils::composePath($binDir, $scriptName);
         
-        chmod($binDir . '/' . $scriptName, 0755);
+        file_put_contents($scriptPath, sprintf($content, $path));
+        
+        chmod($scriptPath, 0755);
     }
 
     /**
@@ -451,7 +476,9 @@ class NodeJsInstaller
             $zip->extractTo($targetDir);
             $zip->close();
         } else {
-            throw new NodeJsInstallerException("Unable to extract file $zipFileName");
+            throw new \Mouf\NodeJsInstaller\Exception\InstallerException(
+                sprintf('Unable to extract file %s', $zipFileName)
+            );
         }
     }
 

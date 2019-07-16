@@ -1,12 +1,12 @@
 <?php
-namespace Mouf\NodeJsInstaller;
+namespace Mouf\NodeJsInstaller\Nodejs\Version;
 
 use Composer\Package\Version\VersionParser;
 
 /**
  * Tries to find a match between a set of versions and constraint
  */
-class NodeJsVersionMatcher
+class Matcher
 {
     /**
      * Return true if $version matches $constraint (expressed as a Composer constraint string)

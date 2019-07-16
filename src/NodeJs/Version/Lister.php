@@ -1,5 +1,5 @@
 <?php
-namespace Mouf\NodeJsInstaller;
+namespace Mouf\NodeJsInstaller\Nodejs\Version;
 
 use Composer\IO\IOInterface;
 use Composer\Util\RemoteFilesystem;
@@ -7,7 +7,7 @@ use Composer\Util\RemoteFilesystem;
 /**
  * A class in charge of retrieving all the available versions of NodeJS.
  */
-class NodeJsVersionsLister
+class Lister
 {
     protected $remoteFilesystem;
 
@@ -32,7 +32,7 @@ class NodeJsVersionsLister
         preg_match_all("$>v([0-9]*\\.[0-9]*\\.[0-9]*)/<$", $html, $matches);
 
         if (!isset($matches[1])) {
-            throw new NodeJsInstallerException(
+            throw new \Mouf\NodeJsInstaller\Exception\InstallerException(
                 'Error while querying ' . self::NODEJS_DIST_URL . '. Unable to find NodeJS' .
                 'versions on this page.'
             );
