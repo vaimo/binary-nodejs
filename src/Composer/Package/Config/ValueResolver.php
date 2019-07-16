@@ -14,5 +14,5 @@ class ValueResolver
         }
 
         return array_keys($autoload[ConfigKeys::PSR4_CONFIG]);
-    } 
+    }
 }

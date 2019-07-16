@@ -14,7 +14,7 @@ class Bootstrap
     private $cliIo;
 
     /**
-     * @var \Composer\Repository\WritableRepositoryInterface 
+     * @var \Composer\Repository\WritableRepositoryInterface
      */
     private $packageRepository;
     
@@ -146,7 +146,7 @@ class Bootstrap
      * @param  Installer $nodeJsInstaller
      * @param  string $versionConstraint
      * @param  string $targetDir
-     * 
+     *
      * @throws \Mouf\NodeJsInstaller\Exception\InstallerException
      * @throws \Mouf\NodeJsInstaller\Exception\InstallerNodeVersionException
      */
@@ -207,7 +207,7 @@ class Bootstrap
     private function getMergedVersionConstraint()
     {
         $packagesList = array_merge(
-            $this->packageRepository->getCanonicalPackages(), 
+            $this->packageRepository->getCanonicalPackages(),
             array($this->rootPackage)
         );
 

@@ -6,7 +6,7 @@ use Composer\DependencyResolver\Operation\OperationInterface;
 class OperationAnalyser
 {
     /**
-     * @var \Vaimo\ComposerPatches\Package\ConfigAnalyser
+     * @var \Mouf\NodeJsInstaller\Composer\Package\ConfigAnalyser
      */
     private $configAnalyser;
 

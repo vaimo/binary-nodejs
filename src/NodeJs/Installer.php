@@ -87,7 +87,7 @@ class Installer
 
     /**
      * Returns the full install path to a command
-     * 
+     *
      * @param string $command
      * @return string
      */
@@ -130,7 +130,7 @@ class Installer
 
     /**
      * Checks if NodeJS is installed locally.
-     * 
+     *
      * If yes, will return the version number.
      * If no, will return null.
      *
@@ -211,9 +211,9 @@ class Installer
     
     /**
      * Returns URL based on version.
-     * 
+     *
      * URL is dependent on environment
-     * 
+     *
      * @param  string $version
      * @return string
      * @throws \Mouf\NodeJsInstaller\Exception\InstallerException
@@ -265,7 +265,7 @@ class Installer
 
     /**
      * Installs NodeJS
-     * 
+     *
      * @param  string $version
      * @param  string $targetDirectory
      * @throws \Mouf\NodeJsInstaller\Exception\InstallerException
@@ -287,7 +287,7 @@ class Installer
         chdir($cwd);
 
         $fileName = FileUtils::composePath(
-            $this->vendorDir, 
+            $this->vendorDir,
             pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_BASENAME)
         );
 
@@ -383,8 +383,8 @@ class Installer
         $output = $return_var = null;
 
         exec(
-            sprintf('tar -xvf %s -C %s --strip 1', $tarGzFile, escapeshellarg($targetDir)), 
-            $output, 
+            sprintf('tar -xvf %s -C %s --strip 1', $tarGzFile, escapeshellarg($targetDir)),
+            $output,
             $return_var
         );
 
@@ -416,7 +416,7 @@ class Installer
         $binDir = realpath($binDir);
 
         $suffix = '';
-        $binFiles = ['node', 'npm'];
+        $binFiles = array('node', 'npm');
         
         if (Environment::isWindows()) {
             $suffix .= '.bat';

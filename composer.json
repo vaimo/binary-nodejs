@@ -2,19 +2,7 @@
     "name": "vaimo/binary-nodejs",
     "type": "composer-plugin",
     "description": "An installer package that let's you install NodeJS and NPM as a Composer dependency. Vaimo: changes introduced to be able to use the package with foxy/foxy",
-    "keywords": ["installer", "nodejs", "npm"],
-    "homepage": "http://mouf-php.com/packages/mouf/nodejs-installer",
     "license": "MIT",
-    "authors": [
-        {
-            "name": "David Négrier",
-            "email": "d.negrier@thecodingmachine.com",
-            "homepage": "http://mouf-php.com"
-        }
-    ],
-    "replace": {
-        "mouf/nodejs-installer": "*" 
-    },
     "require": {
         "php": ">=5.3.0",
         "composer-plugin-api": "^1.0.0",
@@ -29,10 +17,30 @@
         "sebastian/phpcpd": "^4.1.0",
         "phpmd/phpmd": "^2.6.0"
     },
+    "replace": {
+        "mouf/nodejs-installer": "*"
+    },
+    "authors": [
+        {
+            "name": "David Négrier",
+            "email": "d.negrier@thecodingmachine.com",
+            "homepage": "http://mouf-php.com"
+        },
+        {
+            "name": "Allan Paiste",
+            "email": "allan.paiste@gmail.com"
+        }
+    ],
+    "keywords": ["installer", "nodejs", "npm"],
+    "homepage": "http://mouf-php.com/packages/mouf/nodejs-installer",
     "autoload": {
         "psr-4": {
             "Mouf\\NodeJsInstaller\\": "src/"
         }
+    },
+    "scripts-descriptions": {
+        "code:analyse": "Run static code analysis for the source code",
+        "code:normalise": "Apply automatic fixes to the code based on the static code analysis (where applicable)"
     },
     "autoload-dev": {
         "psr-4": {
@@ -43,6 +51,10 @@
         "class": ["Mouf\\NodeJsInstaller\\Plugin"]
     },
     "scripts": {
-        "test": "phpunit"
+        "test": "phpunit",
+        "code:analyse": "bin/analyse",
+        "code:normalise": "bin/normalise",
+        "post-install-cmd": "bin/bootstrap",
+        "post-update-cmd" : "bin/bootstrap"
     }
 }
