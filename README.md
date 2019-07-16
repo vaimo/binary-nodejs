@@ -4,6 +4,8 @@ NodeJS installer for Composer
 This is an installer that will download NodeJS and NPM and install them in your Composer dependencies.
 Installation is skipped if NodeJS is already available on your machine.
 
+More information on recent changes [HERE](./CHANGELOG.md).
+
 Vaimo Modifications
 -------------------
 

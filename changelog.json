@@ -1,0 +1,25 @@
+{
+    "_readme": [
+        "The contents of this file are used to generate CHANGELOG.md; It's kept in JSON/parsable format to make it",
+        "possible to generate change-logs in other formats as well (when needed) and to do automatic releases based on",
+        "added change-log records. More on how to use it: https://github.com/vaimo/composer-changelogs"
+    ],
+    "2.0.1": {
+        "fix": [
+            "make sure that no errors are encountered when plugin gets uninstalled"
+        ],
+        "maintenance": [
+            "code re-organized",
+            "all logic that relied on classes to be in certain depth of directory structure removed"
+        ]
+    },
+    "2.0.0": {
+        "breaking": [
+            "event sequence changed where nodejs observers are triggered very early to allow other plugins that rely on nodejs to be installed to work correctly"
+        ],
+        "maintenance": [
+            "code styling fixes",
+            "introduced static code analysis with compatibility ruleset (to make sure that hte plugin works with php5.3)"
+        ]
+    }
+}

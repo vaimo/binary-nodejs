@@ -5,8 +5,8 @@
     "license": "MIT",
     "require": {
         "php": ">=5.3.0",
-        "composer-plugin-api": "^1.0.0",
-        "ext-openssl": "*"
+        "ext-openssl": "*",
+        "composer-plugin-api": "^1.0.0"
     },
     "require-dev": {
         "composer/composer": "^1.7",
@@ -42,13 +42,24 @@
         "code:analyse": "Run static code analysis for the source code",
         "code:normalise": "Apply automatic fixes to the code based on the static code analysis (where applicable)"
     },
+    "support": {
+        "source": "https://github.com/vaimo/binary-nodejs",
+        "docs": "https://github.com/vaimo/binary-nodejs",
+        "issues": "https://github.com/vaimo/binary-nodejs/issues"
+    },
     "autoload-dev": {
         "psr-4": {
             "Mouf\\NodeJsInstaller\\": "tests/"
         }
     },
     "extra" : {
-        "class": ["Mouf\\NodeJsInstaller\\Plugin"]
+        "class": ["Mouf\\NodeJsInstaller\\Plugin"],
+        "changelog": {
+            "source": "changelog.json",
+            "output": {
+                "md": "CHANGELOG.md"
+            }
+        }
     },
     "scripts": {
         "test": "phpunit",
