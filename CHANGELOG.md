@@ -2,11 +2,12 @@
 
 _This file has been auto-generated from the contents of changelog.json_
 
-## 3.0.0
+## 3.0.0 (2019-07-17)
 
 ### Breaking
 
 * removed Windows support (currently not needed)
+* download path no longer configurable
 
 ### Feature
 
