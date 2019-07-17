@@ -19,7 +19,7 @@ class Installer
     private $cliIo;
 
     /**
-     * @var \Composer\Package\Version\VersionParser 
+     * @var \Composer\Package\Version\VersionParser
      */
     private $versionParser;
 
@@ -29,7 +29,7 @@ class Installer
     private $vendorDir;
 
     /**
-     * @var \Composer\Downloader\DownloadManager 
+     * @var \Composer\Downloader\DownloadManager
      */
     private $downloadManager;
     
@@ -309,15 +309,15 @@ class Installer
         $ownerName = $this->ownerPackage->getName();
         
         $relativePath = FileUtils::composePath(
-            $ownerName, 
+            $ownerName,
             'downloads',
             'nodejs'
         );
 
         $nodePackage = $this->createPackage(
-            sprintf('%s-virtual', $ownerName), 
+            sprintf('%s-virtual', $ownerName),
             $version,
-            $relativePath 
+            $relativePath
         );
 
         $fullPath = FileUtils::composePath($this->vendorDir, $relativePath);
@@ -326,16 +326,20 @@ class Installer
 
         $this->cliIo->write('');
         $this->cliIo->write('<info>Done</info>');
+
+        $fileSystem = new \Composer\Util\Filesystem();
         
-        foreach (array('npm', 'npx') as $link) {
-            $target = FileUtils::composePath($fullPath, 'bin', $link);
-            
-            unlink($target);
+        foreach (array('npm', 'npx') as $linkName) {
+            $targetPath = FileUtils::composePath($fullPath, 'bin', $linkName);
+
+            if (file_exists($targetPath)) {
+                $fileSystem->remove($targetPath);
+            }
             
             symlink(
-                sprintf('../lib/node_modules/npm/bin/%s-cli.js', $link),
-                $target
-            );    
+                sprintf('../lib/node_modules/npm/bin/%s-cli.js', $linkName),
+                $targetPath
+            );
         }
 
         return $nodePackage;

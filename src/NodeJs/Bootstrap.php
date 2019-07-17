@@ -3,7 +3,6 @@ namespace Mouf\NodeJsInstaller\NodeJs;
 
 use Composer\Package\AliasPackage;
 use Composer\Package\CompletePackage;
-use Composer\Util\Filesystem;
 use Mouf\NodeJsInstaller\Utils\FileUtils;
 
 class Bootstrap
@@ -29,7 +28,6 @@ class Bootstrap
     private function getPluginConfig()
     {
         $settings = array(
-            'targetDir' => 'vendor/nodejs/nodejs',
             'forceLocal' => false,
             'includeBinInPath' => false,
         );
@@ -42,7 +40,6 @@ class Bootstrap
             $rootSettings = $extra['mouf']['nodejs'];
             
             $settings = array_merge($settings, $rootSettings);
-            $settings['targetDir'] = trim($settings['targetDir'], '/\\');
         }
         
         return $settings;
@@ -75,16 +72,19 @@ class Bootstrap
         $nodeJsInstaller = new Installer(
             $ownerPackage,
             $downloadManager,
-            $this->cliIo, 
+            $this->cliIo,
             $vendorDir
         );
 
         $isLocal = false;
 
         $package = false;
+        
+        
+        
         if ($settings['forceLocal']) {
             $this->verboseLog(' - Forcing local NodeJS install.');
-            $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint, $settings['targetDir']);
+            $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint);
             $isLocal = true;
         } else {
             $globalVersion = $nodeJsInstaller->getNodeJsGlobalInstallVersion();
@@ -98,10 +98,10 @@ class Bootstrap
 
                 if (!$npmPath) {
                     $this->verboseLog(' - No NPM install found');
-                    $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint, $settings['targetDir']);
+                    $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint);
                     $isLocal = true;
                 } elseif (!$nodeJsVersionMatcher->isVersionMatching($globalVersion, $versionConstraint)) {
-                    $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint, $settings['targetDir']);
+                    $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint);
                     $isLocal = true;
                 } else {
                     $this->verboseLog(
@@ -110,7 +110,7 @@ class Bootstrap
                 }
             } else {
                 $this->verboseLog(' - No global NodeJS install found');
-                $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint, $settings['targetDir']);
+                $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint);
                 $isLocal = true;
             }
         }
@@ -201,15 +201,15 @@ class Bootstrap
     /**
      * Checks local NodeJS version, performs install if needed.
      *
-     * @param  string $binDir
-     * @param  Installer $nodeJsInstaller
-     * @param  string $versionConstraint
-     * @param  string $targetDir
+     * @param string $binDir
+     * @param Installer $nodeJsInstaller
+     * @param string $versionConstraint
+     * @return \Composer\Package\Package
      *
      * @throws \Mouf\NodeJsInstaller\Exception\InstallerException
      * @throws \Mouf\NodeJsInstaller\Exception\InstallerNodeVersionException
      */
-    private function installLocalVersion($binDir, Installer $nodeJsInstaller, $versionConstraint, $targetDir)
+    private function installLocalVersion($binDir, Installer $nodeJsInstaller, $versionConstraint)
     {
         $nodeJsVersionMatcher = new \Mouf\NodeJsInstaller\NodeJs\Version\Matcher();
 
@@ -220,7 +220,7 @@ class Bootstrap
             );
 
             if (!$nodeJsVersionMatcher->isVersionMatching($localVersion, $versionConstraint)) {
-                return $this->installBestPossibleLocalVersion($nodeJsInstaller, $versionConstraint, $targetDir);
+                return $this->installBestPossibleLocalVersion($nodeJsInstaller, $versionConstraint);
             } else {
                 // Question: should we update to the latest version? Should we have a nodejs.lock file???
                 $this->verboseLog(
@@ -229,21 +229,21 @@ class Bootstrap
             }
         } else {
             $this->verboseLog(' - No local NodeJS install found');
-            return $this->installBestPossibleLocalVersion($nodeJsInstaller, $versionConstraint, $targetDir);
+            return $this->installBestPossibleLocalVersion($nodeJsInstaller, $versionConstraint);
         }
     }
 
     /**
      * Installs locally the best possible NodeJS version matching $versionConstraint
      *
-     * @param  Installer $nodeJsInstaller
-     * @param  string $versionConstraint
-     * @param  string $targetDir
+     * @param Installer $nodeJsInstaller
+     * @param string $versionConstraint
+     * @return \Composer\Package\Package
      *
      * @throws \Mouf\NodeJsInstaller\Exception\InstallerException
      * @throws \Mouf\NodeJsInstaller\Exception\InstallerNodeVersionException
      */
-    private function installBestPossibleLocalVersion(Installer $nodeJsInstaller, $versionConstraint, $targetDir)
+    private function installBestPossibleLocalVersion(Installer $nodeJsInstaller, $versionConstraint)
     {
         $nodeJsVersionsLister = new \Mouf\NodeJsInstaller\NodeJs\Version\Lister($this->cliIo);
         $allNodeJsVersions = $nodeJsVersionsLister->getList();
@@ -257,7 +257,7 @@ class Bootstrap
             );
         }
 
-        return $nodeJsInstaller->install($bestPossibleVersion, $targetDir);
+        return $nodeJsInstaller->install($bestPossibleVersion);
     }
 
     /**
@@ -292,47 +292,25 @@ class Bootstrap
 
         return '*';
     }
-
-    /**
-     * Uninstalls NodeJS.
-     * Note: other classes cannot be loaded here since the package has already been removed.
-     */
+    
     public function unload()
     {
-        $settings = $this->getPluginConfig();
-
         $composerConfig = $this->composerRuntime->getConfig();
 
         $binDir = $composerConfig->get('bin-dir');
         
-        $targetDir = $settings['targetDir'];
-        
-        $fileSystem = new Filesystem();
-
-        if (file_exists($targetDir)) {
-            $this->verboseLog('Removing NodeJS local install');
-
-            // Let's remove target directory
-            $fileSystem->remove($targetDir);
-
-            $vendorNodeDir = dirname($targetDir);
-
-            if ($fileSystem->isDirEmpty($vendorNodeDir)) {
-                $fileSystem->remove($vendorNodeDir);
-            }
-        }
-
-        // Now, let's remove the links
-        $this->verboseLog('Removing NodeJS and NPM links from Composer bin directory');
+        $fileSystem = new \Composer\Util\Filesystem();
 
         $binNames= array('node', 'npm', 'node.bat', 'npm.bat');
         
         foreach ($binNames as $file) {
-            $realFile = $binDir . DIRECTORY_SEPARATOR . $file;
+            $filePath = $binDir . DIRECTORY_SEPARATOR . $file;
 
-            if (file_exists($realFile)) {
-                $fileSystem->remove($realFile);
+            if (!file_exists($filePath)) {
+                continue;
             }
+
+            $fileSystem->remove($filePath);
         }
     }
 }

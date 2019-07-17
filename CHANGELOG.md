@@ -2,6 +2,19 @@
 
 _This file has been auto-generated from the contents of changelog.json_
 
+## 3.0.0
+
+### Breaking
+
+* removed Windows support (currently not needed)
+
+### Feature
+
+* switched over to using Composer downloader through creating virtual package for the NodeJs
+* no longer downloading nodejs under it's own vendor namespace: rather using a sub-folder within the plugin (as it fully owns the download)
+
+Links: [src](https://github.com/vaimo/binary-nodejs/tree/3.0.0) [diff](https://github.com/vaimo/binary-nodejs/compare/2.0.1...3.0.0)
+
 ## 2.0.1 (2019-07-16)
 
 ### Fix
