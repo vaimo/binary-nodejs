@@ -1,7 +1,7 @@
 <?php
 namespace Mouf\NodeJsInstaller\Composer\Package\Config;
 
-use Mouf\NodeJsInstaller\Composer\ConfigKeys;
+use Mouf\NodeJsInstaller\Composer\Internal\ConfigKeys;
 
 class ValueResolver
 {

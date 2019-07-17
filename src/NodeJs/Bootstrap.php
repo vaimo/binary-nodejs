@@ -4,6 +4,7 @@ namespace Mouf\NodeJsInstaller\NodeJs;
 use Composer\Package\AliasPackage;
 use Composer\Package\CompletePackage;
 use Mouf\NodeJsInstaller\Utils\FileUtils;
+use Mouf\NodeJsInstaller\Composer\Internal\ConfigKeys;
 
 class Bootstrap
 {
@@ -163,7 +164,7 @@ class Bootstrap
 
     public function isPluginPackage(\Composer\Package\PackageInterface $package)
     {
-        return $package->getType() === \Vaimo\ComposerPatches\Composer\ConfigKeys::COMPOSER_PLUGIN_TYPE;
+        return $package->getType() === ConfigKeys::COMPOSER_PLUGIN_TYPE;
     }
 
     public function ownsNamespace(\Composer\Package\PackageInterface $package, $namespace)
@@ -180,11 +181,11 @@ class Bootstrap
     {
         $autoload = $package->getAutoload();
 
-        if (!isset($autoload[\Mouf\NodeJsInstaller\Composer\ConfigKeys::PSR4_CONFIG])) {
+        if (!isset($autoload[ConfigKeys::PSR4_CONFIG])) {
             return array();
         }
 
-        return array_keys($autoload[\Mouf\NodeJsInstaller\Composer\ConfigKeys::PSR4_CONFIG]);
+        return array_keys($autoload[ConfigKeys::PSR4_CONFIG]);
     }
     
     /**

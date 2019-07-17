@@ -1,6 +1,8 @@
 <?php
 namespace Mouf\NodeJsInstaller\Composer\Package;
 
+use Mouf\NodeJsInstaller\Composer\Internal\ConfigKeys;
+
 class ConfigAnalyser
 {
     /**
@@ -15,7 +17,7 @@ class ConfigAnalyser
 
     public function isPluginPackage(\Composer\Package\PackageInterface $package)
     {
-        return $package->getType() === \Mouf\NodeJsInstaller\Composer\ConfigKeys::COMPOSER_PLUGIN_TYPE;
+        return $package->getType() === ConfigKeys::COMPOSER_PLUGIN_TYPE;
     }
 
     public function ownsNamespace(\Composer\Package\PackageInterface $package, $namespace)

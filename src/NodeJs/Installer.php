@@ -4,7 +4,7 @@ namespace Mouf\NodeJsInstaller\Nodejs;
 use Composer\IO\IOInterface;
 use Mouf\NodeJsInstaller\Utils\FileUtils;
 use Mouf\NodeJsInstaller\Composer\Environment;
-use Mouf\NodeJsInstaller\Composer\ConfigKeys;
+use Mouf\NodeJsInstaller\Composer\Internal\Files;
 
 class Installer
 {
@@ -152,7 +152,7 @@ class Installer
 
         $cwd = getcwd();
         
-        $projectRoot = FileUtils::getClosestFilePath($this->vendorDir, ConfigKeys::PACKAGE_CONFIG_FILE);
+        $projectRoot = FileUtils::getClosestFilePath($this->vendorDir, Files::PACKAGE_CONFIG);
         
         chdir($projectRoot);
 
@@ -390,7 +390,7 @@ class Installer
     {
         $cwd = getcwd();
 
-        $projectRoot = FileUtils::getClosestFilePath($this->vendorDir, ConfigKeys::PACKAGE_CONFIG_FILE);
+        $projectRoot = FileUtils::getClosestFilePath($this->vendorDir, Files::PACKAGE_CONFIG);
         
         chdir($projectRoot);
 
@@ -432,7 +432,7 @@ class Installer
      */
     private function createBinScript($binDir, $fullTargetDir, $scriptName, $target, $isLocal)
     {
-        $packageRoot = FileUtils::getClosestFilePath(__DIR__, ConfigKeys::PACKAGE_CONFIG_FILE);
+        $packageRoot = FileUtils::getClosestFilePath(__DIR__, Files::PACKAGE_CONFIG);
         $binScriptPath = FileUtils::composePath($packageRoot, 'bin', ($isLocal ? 'local' : 'global'), $scriptName);
         
         $content = file_get_contents($binScriptPath);
