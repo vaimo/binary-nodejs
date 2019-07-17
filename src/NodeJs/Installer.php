@@ -143,6 +143,8 @@ class Installer
      *
      * Note: trailing "v" will be removed from version string.
      *
+     * @param string $binDir
+     * 
      * @return null|string
      */
     public function getNodeJsLocalInstallVersion($binDir)
@@ -221,8 +223,9 @@ class Installer
      *
      * URL is dependent on environment
      *
-     * @param  string $version
+     * @param string $version
      * @return string
+     * 
      * @throws \Mouf\NodeJsInstaller\Exception\InstallerException
      */
     public function getDownloadUrl($version)
@@ -464,7 +467,7 @@ class Installer
      * Shamelessly stolen from Symfony's FileSystem. Thanks guys!
      * Given an existing path, convert it to a path relative to a given starting path.
      *
-     * @param string $endPath   Absolute path of target
+     * @param string $endPath Absolute path of target
      * @param string $startPath Absolute path where traversal begins
      *
      * @return string Path of target relative to starting path
