@@ -2,7 +2,6 @@
 namespace Mouf\NodeJsInstaller\Nodejs;
 
 use Composer\IO\IOInterface;
-use Composer\Util\RemoteFilesystem;
 use Mouf\NodeJsInstaller\Utils\FileUtils;
 use Mouf\NodeJsInstaller\Composer\Environment;
 use Mouf\NodeJsInstaller\Composer\ConfigKeys;
@@ -10,14 +9,19 @@ use Mouf\NodeJsInstaller\Composer\ConfigKeys;
 class Installer
 {
     /**
+     * @var \Composer\Package\PackageInterface
+     */
+    private $ownerPackage;
+    
+    /**
      * @var IOInterface
      */
     private $cliIo;
 
     /**
-     * @var RemoteFilesystem
+     * @var \Composer\Package\Version\VersionParser 
      */
-    private $remoteFilesystem;
+    private $versionParser;
 
     /**
      * @var string
@@ -25,20 +29,22 @@ class Installer
     private $vendorDir;
 
     /**
-     * @var string
+     * @var \Composer\Downloader\DownloadManager 
      */
-    private $binDir;
-
+    private $downloadManager;
+    
     public function __construct(
+        \Composer\Package\PackageInterface $ownerPackage,
+        \Composer\Downloader\DownloadManager $downloadManager,
         IOInterface $cliIo,
-        $vendorDir,
-        $binDir
+        $vendorDir
     ) {
+        $this->ownerPackage = $ownerPackage;
+        $this->downloadManager = $downloadManager;
         $this->cliIo = $cliIo;
         $this->vendorDir = $vendorDir;
-        $this->binDir = $vendorDir;
 
-        $this->remoteFilesystem = new RemoteFilesystem($cliIo);
+        $this->versionParser = new \Composer\Package\Version\VersionParser();
     }
 
     /**
@@ -78,6 +84,7 @@ class Installer
     public function getNodeJsGlobalInstallPath()
     {
         $pathToNodeJS = $this->getGlobalInstallPath('nodejs');
+        
         if (!$pathToNodeJS) {
             $pathToNodeJS = $this->getGlobalInstallPath('node');
         }
@@ -218,7 +225,7 @@ class Installer
      * @return string
      * @throws \Mouf\NodeJsInstaller\Exception\InstallerException
      */
-    public function getNodeJSUrl($version)
+    public function getDownloadUrl($version)
     {
         
         $baseUrl = \Mouf\NodeJsInstaller\NodeJs\Version\Lister::NODEJS_DIST_URL . 'v{{VERSION}}';
@@ -263,136 +270,116 @@ class Installer
         );
     }
 
-    /**
-     * Installs NodeJS
-     *
-     * @param  string $version
-     * @param  string $targetDirectory
-     * @throws \Mouf\NodeJsInstaller\Exception\InstallerException
-     */
-    public function install($version, $targetDirectory)
+    public function download(\Composer\Package\PackageInterface $package, $targetDir = null)
     {
-        $url = $this->getNodeJSUrl($version);
+        try {
+            /** @var \Composer\Downloader\DownloaderInterface $downloader */
+            $downloader = $this->downloadManager->getDownloaderForInstalledPackage($package);
 
+            /**
+             * Some downloader types have the option to mute the output,
+             * which is why there is the third call argument (not present
+             * in interface footprint).
+             */
+            $downloader->download($package, $targetDir, false);
+
+            return $package;
+        } catch (\Exception $exception) {
+            $errorMessage = sprintf(
+                'Unexpected error while downloading v%s: %s',
+                $package->getVersion(),
+                $exception->getMessage()
+            );
+
+            throw new \Exception($errorMessage);
+        }
+    }
+    
+    public function getInstallPath(\Composer\Package\PackageInterface $package)
+    {
+        return FileUtils::composePath($this->vendorDir, $package->getTargetDir());
+    }
+    
+    public function install($version)
+    {
         $this->cliIo->write(
             sprintf('Installing <info>NodeJS v%s</info>', $version)
         );
+
+        $ownerName = $this->ownerPackage->getName();
         
-        $this->cliIo->write(
-            sprintf('<comment>Using origin: %s</comment>', $url)
+        $relativePath = FileUtils::composePath(
+            $ownerName, 
+            'downloads',
+            'nodejs'
         );
 
-        $cwd = getcwd();
-        
-        chdir($cwd);
-
-        $fileName = FileUtils::composePath(
-            $this->vendorDir,
-            pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_BASENAME)
+        $nodePackage = $this->createPackage(
+            sprintf('%s-virtual', $ownerName), 
+            $version,
+            $relativePath 
         );
 
-        $this->remoteFilesystem->copy(parse_url($url, PHP_URL_HOST), $url, $fileName);
+        $fullPath = FileUtils::composePath($this->vendorDir, $relativePath);
+        
+        $this->download($nodePackage, $fullPath);
 
         $this->cliIo->write('');
-
-        if (!file_exists($fileName)) {
-            $message = sprintf(
-                '%s could not be saved to %s, make sure the directory is writable and you have internet connectivity',
-                $url,
-                $fileName
-            );
+        $this->cliIo->write('<info>Done</info>');
+        
+        foreach (array('npm', 'npx') as $link) {
+            $target = FileUtils::composePath($fullPath, 'bin', $link);
             
-            throw new \UnexpectedValueException($message);
+            unlink($target);
+            
+            symlink(
+                sprintf('../lib/node_modules/npm/bin/%s-cli.js', $link),
+                $target
+            );    
         }
 
-        if (!file_exists($targetDirectory)) {
-            mkdir($targetDirectory, 0775, true);
-        }
-
-        if (!is_writable($targetDirectory)) {
-            throw new \Mouf\NodeJsInstaller\Exception\InstallerException(
-                sprintf('\'%s\' is not writable', $targetDirectory)
-            );
-        }
-
-        if (!Environment::isWindows()) {
-            // Now, if we are not in Windows, let's untar.
-            $this->extractTo($fileName, $targetDirectory);
-
-            // Let's delete the downloaded file.
-            unlink($fileName);
-        } else {
-            // If we are in Windows, let's move and install NPM.
-            rename($fileName, FileUtils::composePath($targetDirectory, basename($fileName)));
-
-            $npmArchiveName = 'npm-1.4.12.zip';
-            
-            // We have to download the latest available version in a bin for Windows, then upgrade it:
-            $url = \Mouf\NodeJsInstaller\NodeJs\Version\Lister::NODEJS_DIST_URL . 'npm/' . $npmArchiveName;
-            $npmFileName = FileUtils::composePath($this->vendorDir, $npmArchiveName);
-            
-            $this->remoteFilesystem->copy(parse_url($url, PHP_URL_HOST), $url, $npmFileName);
-            
-            $this->unzip($npmFileName, $targetDirectory);
-
-            unlink($npmFileName);
-            
-            // Let's update NPM
-            // 1- Update PATH to run npm.
-            $path = getenv('PATH');
-            $newPath = realpath($targetDirectory) . ';' . $path;
-            
-            putenv('PATH=' . $newPath);
-
-            // 2- Run npm
-            $cwd2 = getcwd();
-            chdir($targetDirectory);
-
-            $returnCode = 0;
-            passthru('npm update npm', $returnCode);
-            
-            if ($returnCode !== 0) {
-                throw new \Mouf\NodeJsInstaller\Exception\InstallerException(
-                    'An error occurred while updating NPM to latest version.'
-                );
-            }
-
-            // Finally, let's copy the base npm file for Cygwin
-            if (file_exists('node_modules/npm/bin/npm')) {
-                copy('node_modules/npm/bin/npm', 'npm');
-            }
-
-            chdir($cwd2);
-        }
-
-        chdir($cwd);
+        return $nodePackage;
     }
-
-    /**
-     * Extract tar.gz file to target directory.
-     *
-     * @param string $tarGzFile
-     * @param string $targetDir
-     * @throws \Mouf\NodeJsInstaller\Exception\InstallerException
-     */
-    private function extractTo($tarGzFile, $targetDir)
+    
+    public function createPackage($name, $version, $targetDir, $binFiles = array())
     {
-        // Note: we cannot use PharData class because it does not keeps symbolic links.
-        // Also, --strip 1 allows us to remove the first directory.
-
-        $output = $return_var = null;
-
-        exec(
-            sprintf('tar -xvf %s -C %s --strip 1', $tarGzFile, escapeshellarg($targetDir)),
-            $output,
-            $return_var
+        $remoteFile = $this->getDownloadUrl($version);
+        
+        $package = new \Composer\Package\Package(
+            $name,
+            $this->versionParser->normalize($version),
+            $version
         );
 
-        if ($return_var !== 0) {
-            throw new \Mouf\NodeJsInstaller\Exception\InstallerException(
-                sprintf('An error occurred while un-taring NodeJS (%s) to %s', $tarGzFile, $targetDir)
-            );
+        if (Environment::isWindows()) {
+            $binFiles = array_map(function ($item) {
+                return $item . '.bat';
+            }, $binFiles);
         }
+
+        $package->setBinaries($binFiles);
+        $package->setInstallationSource('dist');
+
+        $package->setDistType(
+            $this->resolveDistType($remoteFile)
+        );
+
+        $package->setTargetDir($targetDir);
+        $package->setDistUrl($remoteFile);
+
+        return $package;
+    }
+
+    private function resolveDistType($remoteFile)
+    {
+        switch (pathinfo($remoteFile, PATHINFO_EXTENSION)) {
+            case 'zip':
+                return 'zip';
+            case 'exe':
+                return 'file';
+        }
+
+        return 'tar';
     }
 
     public function createBinScripts($binDir, $targetDir, $isLocal)
@@ -415,15 +402,16 @@ class Installer
         $fullTargetDir = realpath($targetDir);
         $binDir = realpath($binDir);
 
-        $suffix = '';
         $binFiles = array('node', 'npm');
         
         if (Environment::isWindows()) {
-            $suffix .= '.bat';
+            $binFiles = array_map(function ($item) {
+                return $item . '.bat';
+            }, $binFiles);
         }
 
         foreach ($binFiles as $binFile) {
-            $this->createBinScript($binDir, $fullTargetDir, $binFile . $suffix, $binFile, $isLocal);
+            $this->createBinScript($binDir, $fullTargetDir, $binFile, $binFile, $isLocal);
         }
         
         chdir($cwd);
@@ -446,7 +434,7 @@ class Installer
         $content = file_get_contents($binScriptPath);
         
         if ($isLocal) {
-            $path = $this->makePathRelative($fullTargetDir, $binDir);
+            $path = rtrim($this->makePathRelative($fullTargetDir, $binDir), DIRECTORY_SEPARATOR);
         } else {
             if ($scriptName === 'node') {
                 $path = $this->getNodeJsGlobalInstallPath();
@@ -505,40 +493,5 @@ class Installer
         $relativePath = $traverser . ($endPathRemainder !== '' ? $endPathRemainder . '/' : '');
 
         return ($relativePath === '') ? './' : $relativePath;
-    }
-
-    private function unzip($zipFileName, $targetDir)
-    {
-        $zip = new \ZipArchive();
-        $res = $zip->open($zipFileName);
-        
-        if ($res === true) {
-            // extract it to the path we determined above
-            $zip->extractTo($targetDir);
-            $zip->close();
-        } else {
-            throw new \Mouf\NodeJsInstaller\Exception\InstallerException(
-                sprintf('Unable to extract file %s', $zipFileName)
-            );
-        }
-    }
-
-    /**
-     * Adds the vendor/bin directory into the path.
-     * Note: the vendor/bin is prepended in order to be applied BEFORE an existing install of node.
-     *
-     * @param string $binDir
-     */
-    public function registerPath($binDir)
-    {
-        $path = getenv('PATH');
-        
-        if (Environment::isWindows()) {
-            $valueSeparator = ';';
-        } else {
-            $valueSeparator = ':';
-        }
-
-        putenv('PATH=' . realpath($binDir) . $valueSeparator . $path);
     }
 }

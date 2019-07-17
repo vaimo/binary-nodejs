@@ -39,4 +39,20 @@ class FileUtils
 
         return false;
     }
+
+    public static function recursiveGlob($pattern, $flags = 0)
+    {
+        $resultGroups = array(
+            glob($pattern, $flags)
+        );
+        
+        foreach (glob(dirname($pattern) . '/*', GLOB_ONLYDIR | GLOB_NOSORT) as $dir) {
+            $resultGroups[] = self::recursiveGlob(
+                self::composePath($dir, basename($pattern)),
+                $flags
+            );
+        }
+        
+        return array_reduce($resultGroups, 'array_merge', array());
+    }
 }

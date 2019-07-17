@@ -4,7 +4,7 @@ namespace Mouf\NodeJsInstaller\NodeJs;
 use Composer\Package\AliasPackage;
 use Composer\Package\CompletePackage;
 use Composer\Util\Filesystem;
-use Mouf\NodeJsInstaller\NodeJs\Installer;
+use Mouf\NodeJsInstaller\Utils\FileUtils;
 
 class Bootstrap
 {
@@ -14,37 +14,16 @@ class Bootstrap
     private $cliIo;
 
     /**
-     * @var \Composer\Repository\WritableRepositoryInterface
+     * @var \Composer\Composer
      */
-    private $packageRepository;
-    
-    /**
-     * @var \Composer\Package\PackageInterface
-     */
-    private $rootPackage;
-
-    /**
-     * @var string
-     */
-    private $vendorDir;
-    
-    /**
-     * @var string
-     */
-    private $binDir;
+    private $composerRuntime;
     
     public function __construct(
         \Composer\IO\IOInterface $cliIo,
-        \Composer\Repository\WritableRepositoryInterface $packageRepository,
-        \Composer\Package\PackageInterface $rootPackage,
-        $vendorDir,
-        $binDir
+        \Composer\Composer $composerRuntime
     ) {
         $this->cliIo = $cliIo;
-        $this->packageRepository = $packageRepository;
-        $this->rootPackage = $rootPackage;
-        $this->vendorDir = $vendorDir;
-        $this->binDir = $binDir;
+        $this->composerRuntime = $composerRuntime;
     }
 
     private function getPluginConfig()
@@ -55,7 +34,9 @@ class Bootstrap
             'includeBinInPath' => false,
         );
 
-        $extra = $this->rootPackage->getExtra();
+        $rootPackage = $this->composerRuntime->getPackage();
+        
+        $extra = $rootPackage->getExtra();
 
         if (isset($extra['mouf']['nodejs'])) {
             $rootSettings = $extra['mouf']['nodejs'];
@@ -69,9 +50,14 @@ class Bootstrap
     
     public function dispatch()
     {
+        $packageRepository = $this->composerRuntime->getRepositoryManager()->getLocalRepository();
+        
         $settings = $this->getPluginConfig();
 
-        $binDir = $this->binDir;
+        $composerConfig = $this->composerRuntime->getConfig();
+        
+        $vendorDir = $composerConfig->get('vendor-dir');
+        $binDir = $composerConfig->get('bin-dir');
 
         $nodeJsVersionMatcher = new \Mouf\NodeJsInstaller\NodeJs\Version\Matcher();
 
@@ -82,13 +68,23 @@ class Bootstrap
             sprintf(' - Requested version: %s', $versionConstraint)
         );
 
-        $nodeJsInstaller = new Installer($this->cliIo, $this->vendorDir, $this->binDir);
+        $ownerPackage = $this->resolveForNamespace($packageRepository, __NAMESPACE__);
+        
+        $downloadManager = $this->composerRuntime->getDownloadManager();
+        
+        $nodeJsInstaller = new Installer(
+            $ownerPackage,
+            $downloadManager,
+            $this->cliIo, 
+            $vendorDir
+        );
 
         $isLocal = false;
 
+        $package = false;
         if ($settings['forceLocal']) {
             $this->verboseLog(' - Forcing local NodeJS install.');
-            $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint, $settings['targetDir']);
+            $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint, $settings['targetDir']);
             $isLocal = true;
         } else {
             $globalVersion = $nodeJsInstaller->getNodeJsGlobalInstallVersion();
@@ -102,10 +98,10 @@ class Bootstrap
 
                 if (!$npmPath) {
                     $this->verboseLog(' - No NPM install found');
-                    $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint, $settings['targetDir']);
+                    $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint, $settings['targetDir']);
                     $isLocal = true;
                 } elseif (!$nodeJsVersionMatcher->isVersionMatching($globalVersion, $versionConstraint)) {
-                    $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint, $settings['targetDir']);
+                    $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint, $settings['targetDir']);
                     $isLocal = true;
                 } else {
                     $this->verboseLog(
@@ -114,13 +110,17 @@ class Bootstrap
                 }
             } else {
                 $this->verboseLog(' - No global NodeJS install found');
-                $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint, $settings['targetDir']);
+                $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint, $settings['targetDir']);
                 $isLocal = true;
             }
         }
+        
+        if ($package) {
+            $installPath = $nodeJsInstaller->getInstallPath($package);
 
-        // Now, let's create the bin scripts that start node and NPM
-        $nodeJsInstaller->createBinScripts($binDir, $settings['targetDir'], $isLocal);
+            // Now, let's create the bin scripts that start node and NPM
+            $nodeJsInstaller->createBinScripts($binDir, $installPath, $isLocal);
+        }
 
         // Finally, let's register vendor/bin in the PATH.
         if ($settings['includeBinInPath']) {
@@ -128,6 +128,65 @@ class Bootstrap
         }
     }
 
+    private function createCacheManager($cacheName)
+    {
+        $composerConfig = $this->composerRuntime->getConfig();
+
+        $cacheDir = $composerConfig->get('cache-dir');
+
+        return new \Composer\Cache(
+            $this->cliIo,
+            FileUtils::composePath($cacheDir, 'files', $cacheName, 'downloads')
+        );
+    }
+    
+    public function resolveForNamespace(\Composer\Repository\WritableRepositoryInterface $repository, $namespace)
+    {
+        $packages = $repository->getCanonicalPackages();
+
+        foreach ($packages as $package) {
+            if (!$this->isPluginPackage($package)) {
+                continue;
+            }
+
+            if (!$this->ownsNamespace($package, $namespace)) {
+                continue;
+            }
+
+            return $package;
+        }
+
+        throw new \Vaimo\ComposerPatches\Exceptions\PackageResolverException(
+            'Failed to detect the plugin package'
+        );
+    }
+
+    public function isPluginPackage(\Composer\Package\PackageInterface $package)
+    {
+        return $package->getType() === \Vaimo\ComposerPatches\Composer\ConfigKeys::COMPOSER_PLUGIN_TYPE;
+    }
+
+    public function ownsNamespace(\Composer\Package\PackageInterface $package, $namespace)
+    {
+        return (bool)array_filter(
+            $this->getConfig($package),
+            function ($item) use ($namespace) {
+                return strpos($namespace, rtrim($item, '\\')) === 0;
+            }
+        );
+    }
+    
+    private function getConfig(\Composer\Package\PackageInterface $package)
+    {
+        $autoload = $package->getAutoload();
+
+        if (!isset($autoload[\Mouf\NodeJsInstaller\Composer\ConfigKeys::PSR4_CONFIG])) {
+            return array();
+        }
+
+        return array_keys($autoload[\Mouf\NodeJsInstaller\Composer\ConfigKeys::PSR4_CONFIG]);
+    }
+    
     /**
      * Writes message only in verbose mode.
      * @param string $message
@@ -161,7 +220,7 @@ class Bootstrap
             );
 
             if (!$nodeJsVersionMatcher->isVersionMatching($localVersion, $versionConstraint)) {
-                $this->installBestPossibleLocalVersion($nodeJsInstaller, $versionConstraint, $targetDir);
+                return $this->installBestPossibleLocalVersion($nodeJsInstaller, $versionConstraint, $targetDir);
             } else {
                 // Question: should we update to the latest version? Should we have a nodejs.lock file???
                 $this->verboseLog(
@@ -170,7 +229,7 @@ class Bootstrap
             }
         } else {
             $this->verboseLog(' - No local NodeJS install found');
-            $this->installBestPossibleLocalVersion($nodeJsInstaller, $versionConstraint, $targetDir);
+            return $this->installBestPossibleLocalVersion($nodeJsInstaller, $versionConstraint, $targetDir);
         }
     }
 
@@ -198,7 +257,7 @@ class Bootstrap
             );
         }
 
-        $nodeJsInstaller->install($bestPossibleVersion, $targetDir);
+        return $nodeJsInstaller->install($bestPossibleVersion, $targetDir);
     }
 
     /**
@@ -207,8 +266,8 @@ class Bootstrap
     private function getMergedVersionConstraint()
     {
         $packagesList = array_merge(
-            $this->packageRepository->getCanonicalPackages(),
-            array($this->rootPackage)
+            $this->composerRuntime->getRepositoryManager()->getLocalRepository()->getCanonicalPackages(),
+            array($this->composerRuntime->getPackage())
         );
 
         $versions = array();
@@ -242,7 +301,10 @@ class Bootstrap
     {
         $settings = $this->getPluginConfig();
 
-        $binDir = $this->binDir;
+        $composerConfig = $this->composerRuntime->getConfig();
+
+        $binDir = $composerConfig->get('bin-dir');
+        
         $targetDir = $settings['targetDir'];
         
         $fileSystem = new Filesystem();

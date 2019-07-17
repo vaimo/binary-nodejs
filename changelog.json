@@ -4,6 +4,15 @@
         "possible to generate change-logs in other formats as well (when needed) and to do automatic releases based on",
         "added change-log records. More on how to use it: https://github.com/vaimo/composer-changelogs"
     ],
+    "3.0.0": {
+        "breaking": [
+            "removed Windows support (currently not needed)"
+        ],
+        "feature": [
+            "switched over to using Composer downloader through creating virtual package for the NodeJs",
+            "no longer downloading nodejs under it's own vendor namespace: rather using a sub-folder within the plugin (as it fully owns the download)"
+        ]
+    },
     "2.0.1": {
         "fix": [
             "make sure that no errors are encountered when plugin gets uninstalled"

@@ -16,16 +16,6 @@ use Composer\Installer\InstallerEvents;
 class Plugin implements PluginInterface, EventSubscriberInterface
 {
     const DOWNLOAD_NODEJS_EVENT = 'download-nodejs';
-    
-    /**
-     * @var Composer
-     */
-    private $composer;
-    
-    /**
-     * @var IOInterface
-     */
-    private $cliIo;
 
     /**
      * @var \Mouf\NodeJsInstaller\Composer\OperationAnalyser
@@ -39,17 +29,11 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
     public function activate(Composer $composer, IOInterface $cliIo)
     {
-        $this->composer = $composer;
-        $this->cliIo = $cliIo;
-
         $this->operationAnalyser = new \Mouf\NodeJsInstaller\Composer\OperationAnalyser();
         
         $this->nodeJsBootstrap = new \Mouf\NodeJsInstaller\NodeJs\Bootstrap(
             $cliIo,
-            $this->composer->getRepositoryManager()->getLocalRepository(),
-            $composer->getPackage(),
-            $composer->getConfig()->get('vendor-dir'),
-            $composer->getConfig()->get('bin-dir')
+            $composer
         );
     }
 
