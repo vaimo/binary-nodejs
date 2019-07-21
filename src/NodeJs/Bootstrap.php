@@ -28,8 +28,8 @@ class Bootstrap
 
     private function getPluginConfig()
     {
-        $settings = array(
-            'forceLocal' => false,
+        $defaults = array(
+            'useGlobal' => false,
             'includeBinInPath' => false,
         );
 
@@ -40,10 +40,10 @@ class Bootstrap
         if (isset($extra['mouf']['nodejs'])) {
             $rootSettings = $extra['mouf']['nodejs'];
             
-            $settings = array_merge($settings, $rootSettings);
+            $defaults = array_replace($defaults, $rootSettings);
         }
         
-        return $settings;
+        return $defaults;
     }
     
     public function dispatch()
@@ -80,40 +80,38 @@ class Bootstrap
         $isLocal = false;
 
         $package = false;
-        
-        
-        
-        if ($settings['forceLocal']) {
-            $this->verboseLog(' - Forcing local NodeJS install.');
-            $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint);
-            $isLocal = true;
-        } else {
+
+        $globalVersion = null;
+
+        if ($settings['useGlobal']) {
             $globalVersion = $nodeJsInstaller->getNodeJsGlobalInstallVersion();
+        }
 
-            if ($globalVersion !== null) {
-                $this->verboseLog(
-                    sprintf(' - Global NodeJS install found: v%s', $globalVersion)
-                );
-                
-                $npmPath = $nodeJsInstaller->getGlobalInstallPath('npm');
+        if ($globalVersion !== null) {
+            $this->verboseLog(
+                sprintf(' - Global NodeJS install found: v%s', $globalVersion)
+            );
 
-                if (!$npmPath) {
-                    $this->verboseLog(' - No NPM install found');
-                    $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint);
-                    $isLocal = true;
-                } elseif (!$nodeJsVersionMatcher->isVersionMatching($globalVersion, $versionConstraint)) {
-                    $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint);
-                    $isLocal = true;
-                } else {
-                    $this->verboseLog(
-                        sprintf(' - Global NodeJS install matches constraint %s', $versionConstraint)
-                    );
-                }
-            } else {
-                $this->verboseLog(' - No global NodeJS install found');
+            $npmPath = $nodeJsInstaller->getGlobalInstallPath('npm');
+
+            if (!$npmPath) {
+                $this->verboseLog(' - No NPM install found');
                 $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint);
                 $isLocal = true;
+            } elseif (!$nodeJsVersionMatcher->isVersionMatching($globalVersion, $versionConstraint)) {
+                $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint);
+                $isLocal = true;
+            } else {
+                $this->verboseLog(
+                    sprintf(' - Global NodeJS install matches constraint %s', $versionConstraint)
+                );
             }
+        } else {
+            $this->verboseLog(' - No global NodeJS install found');
+            
+            $package = $this->installLocalVersion($binDir, $nodeJsInstaller, $versionConstraint);
+            
+            $isLocal = true;
         }
         
         if ($package) {
@@ -127,18 +125,6 @@ class Bootstrap
         if ($settings['includeBinInPath']) {
             $nodeJsInstaller->registerPath($binDir);
         }
-    }
-
-    private function createCacheManager($cacheName)
-    {
-        $composerConfig = $this->composerRuntime->getConfig();
-
-        $cacheDir = $composerConfig->get('cache-dir');
-
-        return new \Composer\Cache(
-            $this->cliIo,
-            FileUtils::composePath($cacheDir, 'files', $cacheName, 'downloads')
-        );
     }
     
     public function resolveForNamespace(\Composer\Repository\WritableRepositoryInterface $repository, $namespace)
@@ -215,6 +201,7 @@ class Bootstrap
         $nodeJsVersionMatcher = new \Mouf\NodeJsInstaller\NodeJs\Version\Matcher();
 
         $localVersion = $nodeJsInstaller->getNodeJsLocalInstallVersion($binDir);
+        
         if ($localVersion !== null) {
             $this->verboseLog(
                 sprintf(' - Local NodeJS install found: v%s', $localVersion)

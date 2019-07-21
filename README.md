@@ -10,6 +10,9 @@ Vaimo Modifications
 -------------------
 
 * Change the order of Composer events to allow the module to be used together with foxy/foxy
+* Use Composer downloader/unpacker through creating virtual package for the node
+* Default behaviour changed to always prefer to install Local version except in situations where user 
+  explicitly asks for Global one (mouf/nodejs/useGlobal)
 
 Why?
 ----
