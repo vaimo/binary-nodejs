@@ -11,8 +11,8 @@
     },
     "3.0.0": {
         "breaking": [
-            "removed Windows support (currently not needed)",
-            "download path no longer configurable"
+            "code: removed Windows support (currently not needed)",
+            "configuration: download path no longer configurable (will always be downloaded to a sub-folder of the package and binary script made to point to it)"
         ],
         "feature": [
             "switched over to using Composer downloader through creating virtual package for the NodeJs",
