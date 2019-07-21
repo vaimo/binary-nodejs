@@ -2,12 +2,20 @@
 
 _This file has been auto-generated from the contents of changelog.json_
 
+## 4.0.0 (2019-07-21)
+
+### Breaking
+
+* behaviour: the default behaviour of the package is to install local version of the node even when global available; Flag 'forceLocal' renamed to 'useGlobal', defaults to FALSE
+
+Links: [src](https://github.com/vaimo/binary-nodejs/tree/4.0.0) [diff](https://github.com/vaimo/binary-nodejs/compare/3.0.0...4.0.0)
+
 ## 3.0.0 (2019-07-17)
 
 ### Breaking
 
-* removed Windows support (currently not needed)
-* download path no longer configurable
+* code: removed Windows support (currently not needed)
+* configuration: download path no longer configurable (will always be downloaded to a sub-folder of the package and binary script made to point to it)
 
 ### Feature
 
