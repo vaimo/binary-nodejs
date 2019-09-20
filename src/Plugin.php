@@ -23,6 +23,11 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     private $operationAnalyser;
 
     /**
+     * @var \Mouf\NodeJsInstaller\Strategy\BootstrapStrategy
+     */
+    private $bootstrapStrategy;
+    
+    /**
      * @var \Mouf\NodeJsInstaller\NodeJs\Bootstrap
      */
     private $nodeJsBootstrap;
@@ -30,10 +35,15 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     public function activate(Composer $composer, IOInterface $cliIo)
     {
         $this->operationAnalyser = new \Mouf\NodeJsInstaller\Composer\OperationAnalyser();
+
+        $composerContextFactory = new \Mouf\NodeJsInstaller\Factory\ComposerContextFactory($composer);
+        $composerContext = $composerContextFactory->create();
+        
+        $this->bootstrapStrategy = new \Mouf\NodeJsInstaller\Strategy\BootstrapStrategy($composerContext);
         
         $this->nodeJsBootstrap = new \Mouf\NodeJsInstaller\NodeJs\Bootstrap(
-            $cliIo,
-            $composer
+            $composerContext,
+            $cliIo
         );
     }
 
@@ -74,7 +84,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     
     public function onPostUpdateInstall()
     {
-        if (!$this->nodeJsBootstrap) {
+        if (!$this->nodeJsBootstrap || !$this->bootstrapStrategy->shouldAllow()) {
             return;
         }
                  

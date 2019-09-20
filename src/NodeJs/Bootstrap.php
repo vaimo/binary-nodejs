@@ -3,27 +3,26 @@ namespace Mouf\NodeJsInstaller\NodeJs;
 
 use Composer\Package\AliasPackage;
 use Composer\Package\CompletePackage;
-use Mouf\NodeJsInstaller\Utils\FileUtils;
-use Mouf\NodeJsInstaller\Composer\Internal\ConfigKeys;
 
 class Bootstrap
 {
     /**
+     * @var \Mouf\NodeJsInstaller\Composer\Context
+     */
+    private $composerContext;
+    
+    /**
      * @var \Composer\IO\IOInterface
      */
     private $cliIo;
-
-    /**
-     * @var \Composer\Composer
-     */
-    private $composerRuntime;
     
     public function __construct(
-        \Composer\IO\IOInterface $cliIo,
-        \Composer\Composer $composerRuntime
+        \Mouf\NodeJsInstaller\Composer\Context $composerContext,
+        \Composer\IO\IOInterface $cliIo
+        
     ) {
+        $this->composerContext = $composerContext;
         $this->cliIo = $cliIo;
-        $this->composerRuntime = $composerRuntime;
     }
 
     private function getPluginConfig()
@@ -33,7 +32,8 @@ class Bootstrap
             'includeBinInPath' => false,
         );
 
-        $rootPackage = $this->composerRuntime->getPackage();
+        $composer = $this->composerContext->getLocalComposer();
+        $rootPackage = $composer->getPackage();
         
         $extra = $rootPackage->getExtra();
 
@@ -48,11 +48,10 @@ class Bootstrap
     
     public function dispatch()
     {
-        $packageRepository = $this->composerRuntime->getRepositoryManager()->getLocalRepository();
-        
         $settings = $this->getPluginConfig();
 
-        $composerConfig = $this->composerRuntime->getConfig();
+        $composer = $this->composerContext->getLocalComposer();
+        $composerConfig = $composer->getConfig();
         
         $vendorDir = $composerConfig->get('vendor-dir');
         $binDir = $composerConfig->get('bin-dir');
@@ -65,10 +64,16 @@ class Bootstrap
         $this->verboseLog(
             sprintf(' - Requested version: %s', $versionConstraint)
         );
-
-        $ownerPackage = $this->resolveForNamespace($packageRepository, __NAMESPACE__);
         
-        $downloadManager = $this->composerRuntime->getDownloadManager();
+        $packages = $this->composerContext->getActivePackages();
+
+        $packageResolver = new \Mouf\NodeJsInstaller\Composer\Plugin\PackageResolver(
+            array($composer->getPackage())
+        );
+        
+        $ownerPackage = $packageResolver->resolveForNamespace($packages, __NAMESPACE__);
+        
+        $downloadManager = $composer->getDownloadManager();
         
         $nodeJsInstaller = new Installer(
             $ownerPackage,
@@ -127,52 +132,8 @@ class Bootstrap
         }
     }
     
-    public function resolveForNamespace(\Composer\Repository\WritableRepositoryInterface $repository, $namespace)
-    {
-        $packages = $repository->getCanonicalPackages();
 
-        foreach ($packages as $package) {
-            if (!$this->isPluginPackage($package)) {
-                continue;
-            }
 
-            if (!$this->ownsNamespace($package, $namespace)) {
-                continue;
-            }
-
-            return $package;
-        }
-
-        throw new \Vaimo\ComposerPatches\Exceptions\PackageResolverException(
-            'Failed to detect the plugin package'
-        );
-    }
-
-    public function isPluginPackage(\Composer\Package\PackageInterface $package)
-    {
-        return $package->getType() === ConfigKeys::COMPOSER_PLUGIN_TYPE;
-    }
-
-    public function ownsNamespace(\Composer\Package\PackageInterface $package, $namespace)
-    {
-        return (bool)array_filter(
-            $this->getConfig($package),
-            function ($item) use ($namespace) {
-                return strpos($namespace, rtrim($item, '\\')) === 0;
-            }
-        );
-    }
-    
-    private function getConfig(\Composer\Package\PackageInterface $package)
-    {
-        $autoload = $package->getAutoload();
-
-        if (!isset($autoload[ConfigKeys::PSR4_CONFIG])) {
-            return array();
-        }
-
-        return array_keys($autoload[ConfigKeys::PSR4_CONFIG]);
-    }
     
     /**
      * Writes message only in verbose mode.
@@ -191,7 +152,7 @@ class Bootstrap
      * @param string $binDir
      * @param Installer $nodeJsInstaller
      * @param string $versionConstraint
-     * @return \Composer\Package\Package
+     * @return \Composer\Package\Package|null
      *
      * @throws \Mouf\NodeJsInstaller\Exception\InstallerException
      * @throws \Mouf\NodeJsInstaller\Exception\InstallerNodeVersionException
@@ -209,16 +170,18 @@ class Bootstrap
 
             if (!$nodeJsVersionMatcher->isVersionMatching($localVersion, $versionConstraint)) {
                 return $this->installBestPossibleLocalVersion($nodeJsInstaller, $versionConstraint);
-            } else {
-                // Question: should we update to the latest version? Should we have a nodejs.lock file???
-                $this->verboseLog(
-                    sprintf(' - Local NodeJS install matches constraint %s', $versionConstraint)
-                );
             }
+
+            // Question: should we update to the latest version? Should we have a nodejs.lock file???
+            $this->verboseLog(
+                sprintf(' - Local NodeJS install matches constraint %s', $versionConstraint)
+            );
         } else {
             $this->verboseLog(' - No local NodeJS install found');
             return $this->installBestPossibleLocalVersion($nodeJsInstaller, $versionConstraint);
         }
+        
+        return null;
     }
 
     /**
@@ -253,9 +216,11 @@ class Bootstrap
      */
     private function getMergedVersionConstraint()
     {
+        $composer = $this->composerContext->getLocalComposer();
+        
         $packagesList = array_merge(
-            $this->composerRuntime->getRepositoryManager()->getLocalRepository()->getCanonicalPackages(),
-            array($this->composerRuntime->getPackage())
+            $composer->getRepositoryManager()->getLocalRepository()->getCanonicalPackages(),
+            array($composer->getPackage())
         );
 
         $versions = array();
@@ -283,7 +248,8 @@ class Bootstrap
     
     public function unload()
     {
-        $composerConfig = $this->composerRuntime->getConfig();
+        $composer = $this->composerContext->getLocalComposer();
+        $composerConfig = $composer->getConfig();
 
         $binDir = $composerConfig->get('bin-dir');
         
