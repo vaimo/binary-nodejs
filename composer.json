@@ -47,11 +47,6 @@
         "docs": "https://github.com/vaimo/binary-nodejs",
         "issues": "https://github.com/vaimo/binary-nodejs/issues"
     },
-    "autoload-dev": {
-        "psr-4": {
-            "Mouf\\NodeJsInstaller\\": "tests/"
-        }
-    },
     "extra" : {
         "class": ["Mouf\\NodeJsInstaller\\Plugin"],
         "changelog": {
