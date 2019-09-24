@@ -144,7 +144,7 @@ class Installer
      * Note: trailing "v" will be removed from version string.
      *
      * @param string $binDir
-     * 
+     *
      * @return null|string
      */
     public function getNodeJsLocalInstallVersion($binDir)
@@ -225,7 +225,7 @@ class Installer
      *
      * @param string $version
      * @return string
-     * 
+     *
      * @throws \Mouf\NodeJsInstaller\Exception\InstallerException
      */
     public function getDownloadUrl($version)

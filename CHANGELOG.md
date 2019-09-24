@@ -2,6 +2,15 @@
 
 _This file has been auto-generated from the contents of changelog.json_
 
+## 4.0.1
+
+### Fix
+
+* allow the plugin to be installed as dependency to globally installed package (as part of dependency of some global package); previously caused every composer call to crash with class declaration conflict
+* removed class reference to dependency that is not listed (and should not be) as dependency
+
+Links: [src](https://github.com/vaimo/binary-nodejs/tree/4.0.1) [diff](https://github.com/vaimo/binary-nodejs/compare/4.0.0...4.0.1)
+
 ## 4.0.0 (2019-07-21)
 
 ### Breaking

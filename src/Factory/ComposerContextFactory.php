@@ -35,6 +35,8 @@ class ComposerContextFactory
 
         array_unshift($instances, self::$globalComposer);
 
-        return new \Mouf\NodeJsInstaller\Composer\Context($instances);
+        return new \Mouf\NodeJsInstaller\Composer\Context(
+            array_filter($instances)
+        );
     }
 }

@@ -19,7 +19,6 @@ class Bootstrap
     public function __construct(
         \Mouf\NodeJsInstaller\Composer\Context $composerContext,
         \Composer\IO\IOInterface $cliIo
-        
     ) {
         $this->composerContext = $composerContext;
         $this->cliIo = $cliIo;
