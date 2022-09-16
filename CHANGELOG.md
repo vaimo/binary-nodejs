@@ -2,6 +2,14 @@
 
 _This file has been auto-generated from the contents of changelog.json_
 
+## 4.1.0 (2022-09-16)
+
+### Feature
+
+* Allow to use Composer 2 in dependency of the project
+
+Links: [src](https://github.com/vaimo/binary-nodejs/tree/4.1.0) [diff](https://github.com/vaimo/binary-nodejs/compare/4.0.1...4.1.0)
+
 ## 4.0.1 (2019-09-24)
 
 ### Fix
