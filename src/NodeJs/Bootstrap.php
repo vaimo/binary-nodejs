@@ -3,6 +3,7 @@ namespace Mouf\NodeJsInstaller\NodeJs;
 
 use Composer\Package\AliasPackage;
 use Composer\Package\CompletePackage;
+use Composer\Config;
 
 class Bootstrap
 {
@@ -15,13 +16,20 @@ class Bootstrap
      * @var \Composer\IO\IOInterface
      */
     private $cliIo;
+
+    /**
+     * @var Config
+     */
+    private $config;
     
     public function __construct(
         \Mouf\NodeJsInstaller\Composer\Context $composerContext,
-        \Composer\IO\IOInterface $cliIo
+        \Composer\IO\IOInterface $cliIo,
+        Config $config
     ) {
         $this->composerContext = $composerContext;
         $this->cliIo = $cliIo;
+        $this->config = $config;
     }
 
     private function getPluginConfig()
@@ -195,7 +203,7 @@ class Bootstrap
      */
     private function installBestPossibleLocalVersion(Installer $nodeJsInstaller, $versionConstraint)
     {
-        $nodeJsVersionsLister = new \Mouf\NodeJsInstaller\NodeJs\Version\Lister($this->cliIo);
+        $nodeJsVersionsLister = new \Mouf\NodeJsInstaller\NodeJs\Version\Lister($this->cliIo, $this->config);
         $allNodeJsVersions = $nodeJsVersionsLister->getList();
 
         $nodeJsVersionMatcher = new \Mouf\NodeJsInstaller\NodeJs\Version\Matcher();
