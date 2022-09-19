@@ -2,6 +2,7 @@
 namespace Mouf\NodeJsInstaller;
 
 use Composer\Composer;
+use Composer\Config;
 use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\IO\IOInterface;
 use Composer\Plugin\PluginInterface;
@@ -26,7 +27,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      * @var \Mouf\NodeJsInstaller\Strategy\BootstrapStrategy
      */
     private $bootstrapStrategy;
-    
+
     /**
      * @var \Mouf\NodeJsInstaller\NodeJs\Bootstrap
      */
@@ -41,15 +42,17 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     public function activate(Composer $composer, IOInterface $cliIo): void
     {
         $this->operationAnalyser = new \Mouf\NodeJsInstaller\Composer\OperationAnalyser();
+        $config = new Config();
 
         $composerContextFactory = new \Mouf\NodeJsInstaller\Factory\ComposerContextFactory($composer);
         $composerContext = $composerContextFactory->create();
-        
+
         $this->bootstrapStrategy = new \Mouf\NodeJsInstaller\Strategy\BootstrapStrategy($composerContext);
-        
+
         $this->nodeJsBootstrap = new \Mouf\NodeJsInstaller\NodeJs\Bootstrap(
             $composerContext,
-            $cliIo
+            $cliIo,
+            $config
         );
     }
 
@@ -92,13 +95,13 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
         $this->nodeJsBootstrap = null;
     }
-    
+
     public function onPostUpdateInstall()
     {
         if (!$this->nodeJsBootstrap || !$this->bootstrapStrategy->shouldAllow()) {
             return;
         }
-                 
+
         $this->nodeJsBootstrap->dispatch();
     }
 
