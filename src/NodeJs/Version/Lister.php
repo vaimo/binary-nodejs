@@ -3,6 +3,7 @@ namespace Mouf\NodeJsInstaller\Nodejs\Version;
 
 use Composer\IO\IOInterface;
 use Composer\Util\RemoteFilesystem;
+use Composer\Config;
 
 /**
  * A class in charge of retrieving all the available versions of NodeJS.
@@ -13,9 +14,13 @@ class Lister
 
     const NODEJS_DIST_URL = 'https://nodejs.org/dist/';
 
-    public function __construct(IOInterface $io)
+    /**
+     * @param \Composer\IO\IOInterface $io
+     * @param \Composer\Config         $config
+     */
+    public function __construct(IOInterface $io, Config $config)
     {
-        $this->remoteFilesystem = new RemoteFilesystem($io);
+        $this->remoteFilesystem = new RemoteFilesystem($io, $config);
     }
 
     public function getList()
