@@ -61,7 +61,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     public static function getSubscribedEvents(): array
     {
         return array(
-            InstallerEvents::PRE_DEPENDENCIES_SOLVING => array(
+            InstallerEvents::PRE_OPERATIONS_EXEC => array(
                 array('onPostUpdateInstall', 199),
             ),
             ScriptEvents::POST_INSTALL_CMD => array(
