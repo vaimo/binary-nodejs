@@ -32,7 +32,13 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      */
     private $nodeJsBootstrap;
 
-    public function activate(Composer $composer, IOInterface $cliIo)
+    /**
+     * @param \Composer\Composer       $composer
+     * @param \Composer\IO\IOInterface $cliIo
+     *
+     * @return void
+     */
+    public function activate(Composer $composer, IOInterface $cliIo): void
     {
         $this->operationAnalyser = new \Mouf\NodeJsInstaller\Composer\OperationAnalyser();
 
@@ -52,7 +58,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      *
      * @return array
      */
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
         return array(
             InstallerEvents::PRE_DEPENDENCIES_SOLVING => array(
@@ -71,7 +77,12 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         );
     }
 
-    public function disableFeatures(\Composer\Installer\PackageEvent $event)
+    /**
+     * @param \Composer\Installer\PackageEvent $event
+     *
+     * @return void
+     */
+    public function disableFeatures(\Composer\Installer\PackageEvent $event): void
     {
         if (!$this->operationAnalyser->isUninstallOperationForNamespace($event->getOperation(), __NAMESPACE__)) {
             return;
@@ -89,5 +100,27 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         }
                  
         $this->nodeJsBootstrap->dispatch();
+    }
+
+    /**
+     * @param \Composer\Composer       $composer
+     * @param \Composer\IO\IOInterface $io
+     *
+     * @return void
+     */
+    public function uninstall(Composer $composer, IOInterface $io): void
+    {
+        // TODO: Implement uninstall() method.
+    }
+
+    /**
+     * @param \Composer\Composer       $composer
+     * @param \Composer\IO\IOInterface $io
+     *
+     * @return void
+     */
+    public function deactivate(Composer $composer, IOInterface $io): void
+    {
+        // TODO: Implement deactivate() method.
     }
 }
